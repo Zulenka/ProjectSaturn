@@ -7,6 +7,7 @@ export const {
   userAgentData: navUAD,
 } = navigator;
 const uaVer = navUA.match(/\s(?:Chrom(?:e|ium)|Firefox)\/(\d+[.0-9]*)|$/i)[1];
+const operaUaVer = navUA.match(/\sOPR\/(\d+[.0-9]*)|$/i)[1];
 const kFullVersionList = 'fullVersionList';
 
 /** @type {VMScriptGMInfoPlatform} */
@@ -38,6 +39,7 @@ init.deps.push(
     { [kFullVersionList]: list } = {},
     [wnd],
   ]) => {
+    if (!name && operaUaVer) name = 'Opera';
     if (!version && list?.[0]) {
       [name, version] = list.map(({ brand, version: v }) => (
         /[^\sa-z]/i.test(brand) ? '3' : // downgrading GREASE value
@@ -48,7 +50,7 @@ init.deps.push(
     ua.arch = arch;
     ua.os = os;
     setBrowserName(name || 'chrome');
-    ua.browserVersion = version || uaVer;
+    ua.browserVersion = version || operaUaVer || uaVer;
     ua[kFullVersionList] = list;
     if (FIREFOX) FIREFOX = parseFloat(version);
     else if (wnd) checkVivaldi(wnd);

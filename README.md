@@ -42,9 +42,19 @@ To release a new version, we must build the assets and upload them to web stores
 # Build for normal releases
 $ yarn build
 
+# Build browser-specific outputs (same codebase, different manifest packaging)
+$ yarn build:chrome
+$ yarn build:firefox
+$ yarn build:opera
+
+# Build all browser targets
+$ yarn build:all
+
 # Build for self-hosted release that has an update_url
 $ yarn build:selfHosted
 ```
+
+Browser-target builds are copied to `dist-builds/chrome`, `dist-builds/firefox`, and `dist-builds/opera`.
 
 ### Release
 

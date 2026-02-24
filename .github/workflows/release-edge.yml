@@ -34,8 +34,8 @@ jobs:
           SYNC_ONEDRIVE_CLIENT_ID: ${{ secrets.SYNC_ONEDRIVE_CLIENT_ID }}
         run: |
           mkdir -p $ASSETS_DIR
-          yarn build
-          cd dist && zip -r ../$ASSETS_DIR/$ASSET_ZIP . && cd ..
+          TARGET_BROWSER=chrome yarn build
+          cd dist && zip -r ../$ASSETS_DIR/$ASSET_CHROME_ZIP . && cd ..
 
       - uses: denoland/setup-deno@v2
         with:
@@ -44,7 +44,7 @@ jobs:
       - name: Publish to Edge
         run: |
           if [ "$PRERELEASE" != "true" ]; then
-            deno run -A https://raw.githubusercontent.com/violentmonkey/publish-edge-ext/main/main.ts $ASSETS_DIR/$ASSET_ZIP
+            deno run -A https://raw.githubusercontent.com/violentmonkey/publish-edge-ext/main/main.ts $ASSETS_DIR/$ASSET_CHROME_ZIP
           else
             echo Skip BETA for Edge
           fi

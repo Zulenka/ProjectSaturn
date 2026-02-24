@@ -25,7 +25,10 @@ const envs = {
 };
 
 envs.SOURCE_ZIP = `${envs.RELEASE_PREFIX}-${envs.VERSION}-source.zip`;
-envs.ASSET_ZIP = `${envs.RELEASE_PREFIX}-webext-v${envs.VERSION}.zip`;
+envs.ASSET_FIREFOX_ZIP = `${envs.RELEASE_PREFIX}-webext-firefox-v${envs.VERSION}.zip`;
+envs.ASSET_CHROME_ZIP = `${envs.RELEASE_PREFIX}-webext-chrome-v${envs.VERSION}.zip`;
+envs.ASSET_ZIP = envs.ASSET_FIREFOX_ZIP; // backward-compatible alias for legacy workflows/scripts
+envs.ASSET_OPERA_ZIP = `${envs.RELEASE_PREFIX}-webext-opera-v${envs.VERSION}.zip`;
 envs.ASSET_CWS_BETA_ZIP = `${envs.RELEASE_PREFIX}-webext-beta-v${envs.VERSION}.zip`;
 envs.ASSET_SELF_HOSTED_ZIP = `${envs.RELEASE_PREFIX}-webext-ffself-v${envs.VERSION}.zip`;
 

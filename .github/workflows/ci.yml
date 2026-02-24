@@ -33,7 +33,7 @@ jobs:
           SYNC_GOOGLE_DESKTOP_ID: ${{ secrets.SYNC_GOOGLE_DESKTOP_ID }}
           SYNC_GOOGLE_DESKTOP_SECRET: ${{ secrets.SYNC_GOOGLE_DESKTOP_SECRET }}
           SYNC_ONEDRIVE_CLIENT_ID: ${{ secrets.SYNC_ONEDRIVE_CLIENT_ID }}
-        run: yarn && yarn build
+        run: yarn && yarn build:all
 
       - name: Get version and SHA
         run: node scripts/action-helper.js ci
@@ -41,8 +41,8 @@ jobs:
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: 'Violentmonkey-test-webext-${{ env.GIT_DESCRIBE }}'
-          path: 'dist/*'
+          name: 'Violentmonkey-test-webexts-${{ env.GIT_DESCRIBE }}'
+          path: 'dist-builds/*'
           if-no-files-found: error
 
       - name: Upload to Transifex - check src

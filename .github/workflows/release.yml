@@ -46,16 +46,26 @@ jobs:
           # Build one more time to make sure the output is the same
           mv dist $TEMP_DIR/dist && yarn build && diff -qr dist $TEMP_DIR/dist
 
-          cd dist && zip -r ../$ASSETS_DIR/$ASSET_ZIP . && cd ..
+          # Firefox release package (listed AMO source package)
+          TARGET_BROWSER=firefox npx gulp manifest
+          cd dist && zip -r ../$ASSETS_DIR/$ASSET_FIREFOX_ZIP . && cd ..
+
+          # Chrome release package (CWS/Chromium-compatible stores)
+          TARGET_BROWSER=chrome npx gulp manifest
+          cd dist && zip -r ../$ASSETS_DIR/$ASSET_CHROME_ZIP . && cd ..
+
+          # Build Opera package from the same compiled assets, only manifest differs
+          TARGET_BROWSER=opera npx gulp manifest
+          cd dist && zip -r ../$ASSETS_DIR/$ASSET_OPERA_ZIP . && cd ..
 
           # Build for CWS beta, append `BETA` to version name
           # Same as `BETA=1 yarn build` but only manifest is changed by now
-          BETA=1 npx gulp manifest
+          TARGET_BROWSER=chrome BETA=1 npx gulp manifest
           cd dist && zip -r ../$TEMP_DIR/$ASSET_CWS_BETA_ZIP . && cd ..
 
           # Build for AMO unlisted, append `BETA` to version name and set update_url for FF
           # Same as `yarn build:selfHosted` but only manifest is changed by now
-          TARGET=selfHosted BETA=1 npx gulp manifest
+          TARGET_BROWSER=firefox TARGET=selfHosted BETA=1 npx gulp manifest
           cd dist && zip -r ../$TEMP_DIR/$ASSET_SELF_HOSTED_ZIP . && cd ..
 
       - name: Publish to AMO
@@ -82,7 +92,7 @@ jobs:
           set -x
           if [ "$PRERELEASE" != "true" ]; then
             echo Publish release
-            npx chrome-webstore-upload-cli@1 upload --extension-id $EXTENSION_ID_RELEASE --source $ASSETS_DIR/$ASSET_ZIP --auto-publish
+            npx chrome-webstore-upload-cli@1 upload --extension-id $EXTENSION_ID_RELEASE --source $ASSETS_DIR/$ASSET_CHROME_ZIP --auto-publish
           else
             echo Publish prerelease
             npx chrome-webstore-upload-cli@1 upload --extension-id $EXTENSION_ID_BETA --source $TEMP_DIR/$ASSET_CWS_BETA_ZIP --auto-publish
