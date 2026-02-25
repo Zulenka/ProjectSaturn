@@ -192,6 +192,8 @@ import Edit from './edit';
 const NEW_LINKS = [
   [i18n('buttonNew'),
     { tabIndex: 0, onclick: () => handleEditScript('_new') }],
+  [i18n('installFrom', 'File...'),
+    { tabIndex: 0, onclick: handleInstallFromFile }],
   [i18n('installFrom', 'OpenUserJS'),
     { href: 'https://openuserjs.org/', ...EXTERNAL_LINK_PROPS }],
   [i18n('installFrom', 'GreasyFork'),
@@ -199,6 +201,7 @@ const NEW_LINKS = [
   [i18n('buttonInstallFromURL'),
     { tabIndex: 0, onclick: handleInstallFromURL }],
 ];
+const SCRIPT_UPLOAD_ACCEPT = '.user.js,.js,text/javascript,application/javascript';
 const EDIT = 'edit';
 const REMOVE = 'remove';
 const RESTORE = 'restore';
@@ -414,6 +417,42 @@ async function handleInstallFromURL() {
   } catch (err) {
     showMessage({ text: err.message || err });
   }
+}
+async function handleInstallFromFile() {
+  const file = await pickScriptFile();
+  if (!file || store.batch) return;
+  runInBatch(installScriptFromFile, file);
+}
+function pickScriptFile() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = SCRIPT_UPLOAD_ACCEPT;
+  return new Promise(resolve => {
+    input.onchange = () => resolve(input.files?.[0] || null);
+    input.click();
+  });
+}
+async function installScriptFromFile(file) {
+  try {
+    const code = await file.text();
+    const result = await sendCmdDirectly('ParseScript', {
+      code,
+      message: '',
+    });
+    const id = result?.where?.id;
+    if (!id) return;
+    await waitForScriptInStore(id);
+    handleEditScript(id);
+  } catch (err) {
+    showMessage({ text: err.message || err });
+  }
+}
+async function waitForScriptInStore(id, retries = 20) {
+  while (retries-- > 0) {
+    if (getCurrentList().some(script => script.props.id === id)) return true;
+    await new Promise(requestAnimationFrame);
+  }
+  return false;
 }
 async function moveScript(from, to) {
   if (from === to) return;
