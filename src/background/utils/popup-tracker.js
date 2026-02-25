@@ -53,10 +53,16 @@ addPublicCommands({
 });
 
 browser.runtime.onConnect.addListener(onPopupOpened);
-browser.webRequest.onBeforeRequest.addListener(prefetchSetPopup, {
-  urls: [chrome.runtime.getURL(extensionManifest[BROWSER_ACTION].default_popup)],
-  types: ['main_frame'],
-});
+try {
+  browser.webRequest.onBeforeRequest.addListener(prefetchSetPopup, {
+    urls: [chrome.runtime.getURL(extensionManifest[BROWSER_ACTION].default_popup)],
+    types: ['main_frame'],
+  });
+} catch (e) {
+  if (process.env.DEBUG) {
+    console.warn('Popup prefetch hook is unavailable in this runtime.', e);
+  }
+}
 
 async function augmentSetPopup(data, src, key) {
   data[MORE] = true;
