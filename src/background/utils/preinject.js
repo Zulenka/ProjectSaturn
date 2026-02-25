@@ -231,6 +231,15 @@ addPublicCommands({
     const { tab, [kFrameId]: frameId } = src;
     const isTop = src[kTop];
     const tabId = tab.id;
+    if (IS_MV3 && forceContent && isTop && tabId >= 0) {
+      const hintedUrl = url || src.url || tab.url;
+      if (hintedUrl) {
+        const key = getCspHintKey(tabId, hintedUrl);
+        cspHints[key] = { forceContent: true };
+        const bag = cache.get(getKey(hintedUrl, true));
+        if (bag) applyCspResultToBag(cspHints[key], bag, hintedUrl);
+      }
+    }
     injectContentRealm(items, tabId, frameId);
     if (!moreKey) return;
     if (!url) url = src.url || tab.url;
