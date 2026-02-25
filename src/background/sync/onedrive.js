@@ -26,7 +26,7 @@ const config = {
   redirect_uri: VM_HOME + 'auth_onedrive.html',
 };
 
-const OneDrive = BaseService.extend({
+export const OneDrive = BaseService.extend({
   name: 'onedrive',
   displayName: 'OneDrive',
   urlPrefix: 'https://graph.microsoft.com/v1.0',

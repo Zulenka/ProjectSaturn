@@ -32,7 +32,7 @@ const config = {
   scope: 'https://www.googleapis.com/auth/drive.appdata',
 };
 
-const GoogleDrive = BaseService.extend({
+export const GoogleDrive = BaseService.extend({
   name: 'googledrive',
   displayName: 'Google Drive',
   urlPrefix: 'https://www.googleapis.com/drive/v3',

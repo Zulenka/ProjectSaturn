@@ -27,7 +27,7 @@ function jsonStringifySafe(obj) {
   return string.replace(escRE, escFunc);
 }
 
-const Dropbox = BaseService.extend({
+export const Dropbox = BaseService.extend({
   name: 'dropbox',
   displayName: 'Dropbox',
   async requestAuth() {
