@@ -25,7 +25,7 @@ describe('verify-build-artifacts', () => {
       manifest_version: 3,
       action: { default_title: 'x' },
       background: { service_worker: 'background/index.js' },
-      permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen'],
+      permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen', 'userScripts'],
     };
     writeManifest(workDir, 'chrome-mv3', mv3);
     writeManifest(workDir, 'opera-mv3', mv3);
@@ -37,7 +37,7 @@ describe('verify-build-artifacts', () => {
       manifest_version: 3,
       action: { default_title: 'x' },
       background: { service_worker: 'background/index.js' },
-      permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen'],
+      permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen', 'userScripts'],
     };
     const mv2 = {
       manifest_version: 2,
@@ -61,7 +61,7 @@ describe('verify-build-artifacts', () => {
       manifest_version: 3,
       action: { default_title: 'x' },
       background: { service_worker: 'background/index.js' },
-      permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen'],
+      permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen', 'userScripts'],
     });
     await expect(run('mv3', join(workDir, 'dist-builds'))).rejects.toThrow('expected action in MV3 manifest');
   });

@@ -56,6 +56,7 @@ function applyManifestTarget(data) {
   });
   if (!permissions.includes('declarativeNetRequest')) permissions.push('declarativeNetRequest');
   if (!permissions.includes('offscreen')) permissions.push('offscreen');
+  if (!permissions.includes('userScripts')) permissions.push('userScripts');
   if (!permissions.includes('scripting')) permissions.push('scripting');
   data.permissions = permissions;
   if (hostPermissions.size) data.host_permissions = [...hostPermissions];

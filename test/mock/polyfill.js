@@ -1,5 +1,9 @@
 global.chrome =
 global.browser = {
+  userScripts: {
+    register: async () => {},
+    unregister: async () => {},
+  },
   storage: {
     local: {
       get() {

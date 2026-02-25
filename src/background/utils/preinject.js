@@ -675,11 +675,14 @@ function injectContentRealm(toContent, tabId, frameId) {
   for (const [id, dataKey] of toContent) {
     const scr = cache.get(S_SCRIPT_PRE + id); // TODO: recreate if expired?
     if (!scr || scr.key.data !== dataKey) continue;
-    executeScriptInTab(tabId, {
+    const options = {
       code: scr[__CODE].join(''),
       [RUN_AT]: `document_${scr[RUN_AT]}`.replace('body', 'start'),
       [kFrameId]: frameId,
-    }).then(scr.meta[UNWRAP] && (() => sendTabCmd(tabId, 'Run', id, { [kFrameId]: frameId })));
+      tryUserScripts: IS_MV3 && frameId === 0,
+    };
+    executeScriptInTab(tabId, options)
+      .then(scr.meta[UNWRAP] && (() => sendTabCmd(tabId, 'Run', id, { [kFrameId]: frameId })));
   }
 }
 

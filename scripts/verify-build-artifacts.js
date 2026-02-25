@@ -24,6 +24,7 @@ function checkMv3Manifest(manifest, dir) {
   assert(manifest.permissions?.includes('scripting'), `${dir}: expected scripting permission in MV3 manifest`);
   assert(manifest.permissions?.includes('declarativeNetRequest'), `${dir}: expected declarativeNetRequest permission in MV3 manifest`);
   assert(manifest.permissions?.includes('offscreen'), `${dir}: expected offscreen permission in MV3 manifest`);
+  assert(manifest.permissions?.includes('userScripts'), `${dir}: expected userScripts permission in MV3 manifest`);
   assert(!manifest.permissions?.includes('webRequestBlocking'), `${dir}: webRequestBlocking must be absent in MV3 manifest`);
 }
 

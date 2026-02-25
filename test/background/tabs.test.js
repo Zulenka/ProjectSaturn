@@ -1,26 +1,36 @@
-import { executeScriptInTab } from '@/background/utils/tabs';
+import { executeScriptInTab, registerUserScriptOnce } from '@/background/utils/tabs';
 import { browser as browserApi } from '@/common/consts';
 
 const { tabs } = browserApi;
 const browser = global.browser;
 
 let oldTabsExecuteScript;
+let oldTabsGet;
 let oldBrowserScripting;
 let oldChromeScripting;
+let oldChromeUserScripts;
+let oldBrowserUserScripts;
 let oldRuntimeLastError;
 
 beforeEach(() => {
   oldTabsExecuteScript = tabs.executeScript;
+  oldTabsGet = tabs.get;
   oldBrowserScripting = browser.scripting;
   oldChromeScripting = chrome.scripting;
+  oldChromeUserScripts = chrome.userScripts;
+  oldBrowserUserScripts = browser.userScripts;
   oldRuntimeLastError = chrome.runtime.lastError;
   chrome.runtime.lastError = null;
 });
 
 afterEach(() => {
+  jest.useRealTimers();
   tabs.executeScript = oldTabsExecuteScript;
+  tabs.get = oldTabsGet;
   browser.scripting = oldBrowserScripting;
   chrome.scripting = oldChromeScripting;
+  chrome.userScripts = oldChromeUserScripts;
+  browser.userScripts = oldBrowserUserScripts;
   chrome.runtime.lastError = oldRuntimeLastError;
 });
 
@@ -177,6 +187,89 @@ test('executeScriptInTab does not force immediate injection for document_end and
     expect(details.target).toEqual({ tabId: 21 });
     expect(details.injectImmediately).toBeUndefined();
   });
+});
+
+test('registerUserScriptOnce registers one-shot script and schedules cleanup', async () => {
+  jest.useFakeTimers();
+  tabs.get = jest.fn(async () => ({ url: 'https://example.com/path/index.html?x=1' }));
+  const register = jest.fn(async () => {});
+  const unregister = jest.fn(async () => {});
+  chrome.userScripts = { register, unregister };
+  browser.userScripts = chrome.userScripts;
+  const ok = await registerUserScriptOnce(22, {
+    code: 'window.__vm = 1;',
+    [RUN_AT]: 'document_start',
+    [kFrameId]: 0,
+  });
+  expect(ok).toBe(true);
+  expect(register).toHaveBeenCalledTimes(1);
+  const [{ id, matches, persistAcrossSessions }] = register.mock.calls[0][0];
+  expect(id).toMatch(/^vm-one-shot-/);
+  expect(matches).toEqual(['https://example.com/path/index.html*']);
+  expect(persistAcrossSessions).toBe(false);
+  jest.advanceTimersByTime(30e3);
+  await Promise.resolve();
+  expect(unregister).toHaveBeenCalledWith({ ids: [id] });
+  jest.useRealTimers();
+});
+
+test('registerUserScriptOnce returns false for unsupported URL', async () => {
+  tabs.get = jest.fn(async () => ({ url: 'chrome://newtab/' }));
+  const register = jest.fn(async () => {});
+  chrome.userScripts = { register, unregister: jest.fn(async () => {}) };
+  browser.userScripts = chrome.userScripts;
+  const ok = await registerUserScriptOnce(23, {
+    code: '1',
+    [kFrameId]: 0,
+  });
+  expect(ok).toBe(false);
+  expect(register).not.toHaveBeenCalled();
+});
+
+test('executeScriptInTab prefers userScripts path when tryUserScripts is enabled', async () => {
+  tabs.get = jest.fn(async () => ({ url: 'https://example.com/page' }));
+  tabs.executeScript = undefined;
+  browser.scripting = undefined;
+  chrome.scripting = {
+    executeScript: jest.fn((details, cb) => cb([{ result: 'legacy' }])),
+  };
+  chrome.userScripts = {
+    register: jest.fn(async () => {}),
+    unregister: jest.fn(async () => {}),
+  };
+  browser.userScripts = chrome.userScripts;
+  const res = await executeScriptInTab(24, {
+    code: 'window.__vm = true;',
+    tryUserScripts: true,
+    [kFrameId]: 0,
+  });
+  expect(chrome.userScripts.register).toHaveBeenCalledTimes(1);
+  expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+  expect(res).toEqual([true]);
+});
+
+test('executeScriptInTab falls back when userScripts registration fails', async () => {
+  tabs.get = jest.fn(async () => ({ url: 'https://example.com/page' }));
+  tabs.executeScript = undefined;
+  browser.scripting = undefined;
+  chrome.scripting = {
+    executeScript: jest.fn((details, cb) => cb([{ result: 'legacy' }])),
+  };
+  chrome.userScripts = {
+    register: jest.fn(async () => {
+      throw new Error('no userscripts');
+    }),
+    unregister: jest.fn(async () => {}),
+  };
+  browser.userScripts = chrome.userScripts;
+  const res = await executeScriptInTab(25, {
+    code: 'window.__vm = false;',
+    tryUserScripts: true,
+    [kFrameId]: 0,
+  });
+  expect(chrome.userScripts.register).toHaveBeenCalledTimes(1);
+  expect(chrome.scripting.executeScript).toHaveBeenCalled();
+  expect(res).toEqual(['legacy']);
 });
 
 test('getTabUrl prefers current tab.url over pendingUrl', () => {

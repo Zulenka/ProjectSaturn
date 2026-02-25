@@ -35,6 +35,7 @@ test('buildManifest transforms Chromium target to MV3', async () => {
   expect(manifest.permissions).toContain('scripting');
   expect(manifest.permissions).toContain('declarativeNetRequest');
   expect(manifest.permissions).toContain('offscreen');
+  expect(manifest.permissions).toContain('userScripts');
   expect(manifest.permissions).not.toContain('webRequestBlocking');
   expect(manifest.host_permissions).toContain('<all_urls>');
 });

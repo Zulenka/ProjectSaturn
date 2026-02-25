@@ -17,7 +17,7 @@ Primary implementation guidance: `deep-research-report.md`.
 | ID | Requirement | Current State | Required Implementation | Status |
 | --- | --- | --- | --- | --- |
 | CR-MV3-01 | Use `chrome.declarativeNetRequest` instead of blocking `webRequest`; use `chrome.offscreen` for WebDAV and `GM_xmlhttpRequest` support paths. | MV3 currently gates/degrades blocking `webRequest` behavior and does not implement `offscreen` flow for these paths. | Replace blocking/interception-dependent logic with DNR rule orchestration and add offscreen-backed execution where background DOM/network flow is required. | Open |
-| CR-MV3-02 | Use `chrome.userScripts.register` instead of `executeScript`. | Injection path currently relies on `tabs.executeScript` / `scripting.executeScript` compatibility wrapper. | Re-architect script registration/injection pipeline around `chrome.userScripts.register` with parity for frame/run-at/update lifecycle behavior. | Open |
+| CR-MV3-02 | Use `chrome.userScripts.register` instead of `executeScript`. | Injection path currently relies on `tabs.executeScript` / `scripting.executeScript` compatibility wrapper. | Re-architect script registration/injection pipeline around `chrome.userScripts.register` with parity for frame/run-at/update lifecycle behavior. | In progress |
 
 ## Execution Phases (From Research Report)
 
@@ -25,7 +25,7 @@ Primary implementation guidance: `deep-research-report.md`.
 | --- | --- | --- | --- |
 | P1 | Replace blocking/interception-dependent request logic with DNR ruleset orchestration (`static` + `dynamic/session` where needed), including rule lifecycle and priority strategy. | CR-MV3-01 | In progress |
 | P2 | Introduce offscreen-backed worker flow for DOM/network-adjacent tasks required by WebDAV + `GM_xmlhttpRequest` support paths; enforce runtime message boundaries. | CR-MV3-01 | In progress |
-| P3 | Replace imperative tab/script injection wrapper path with `chrome.userScripts.register` architecture, including update/unregister lifecycle and run-at/frame parity verification. | CR-MV3-02 | Open |
+| P3 | Replace imperative tab/script injection wrapper path with `chrome.userScripts.register` architecture, including update/unregister lifecycle and run-at/frame parity verification. | CR-MV3-02 | In progress |
 | P4 | Hardening pass: permissions/CSP/WAR minimization, service-worker lifecycle resilience tests, and cold-start validation with DevTools closed. | CR-MV3-01, CR-MV3-02 | Open |
 
 ## Progress Log
@@ -38,6 +38,10 @@ Primary implementation guidance: `deep-research-report.md`.
   - Added MV3 `offscreen` permission in manifest transformation and updated artifact checks.
   - Added initial MV3 offscreen HTTP fallback path for `GM_xmlhttpRequest` when `XMLHttpRequest` is unavailable in service worker context.
   - Added regression coverage for offscreen fallback (`test/background/requests-offscreen.test.js`) and parser behavior (`test/common/webdav-xml.test.js`).
+  - Began MV3 `userScripts.register` migration slice: added MV3 `userScripts` permission wiring in manifest transform + artifact checks.
+  - Added top-frame one-shot `userScripts.register` helper (`registerUserScriptOnce`) with timed unregister fallback.
+  - Wired content-realm preinject path to opt into `userScripts` on MV3 top frame while retaining `executeScript` fallback for parity.
+  - Added regression coverage for `registerUserScriptOnce` success/fallback and `executeScriptInTab` `tryUserScripts` behavior (`test/background/tabs.test.js`).
 
 ## Evidence Pointers
 

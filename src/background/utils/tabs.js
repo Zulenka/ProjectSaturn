@@ -42,6 +42,8 @@ export const tabsOnUpdated = browser.tabs.onUpdated;
 export const tabsOnRemoved = browser.tabs.onRemoved;
 export let injectableRe = /^(https?|file|ftps?):/;
 export let fileSchemeRequestable;
+const USERSCRIPT_UNREGISTER_DELAY = 30e3;
+let userScriptSeq = 0;
 let cookieStorePrefix;
 
 try {
@@ -223,6 +225,9 @@ export async function forEachTab(callback) {
  * Returns an array of per-frame results like browser.tabs.executeScript.
  */
 export async function executeScriptInTab(tabId, options) {
+  if (options.tryUserScripts && await registerUserScriptOnce(tabId, options)) {
+    return [true];
+  }
   if (browser.tabs.executeScript) {
     return browser.tabs.executeScript(tabId, options);
   }
@@ -271,6 +276,59 @@ export async function executeScriptInTab(tabId, options) {
     result = await execViaCallback();
   }
   return result.map(item => item.result);
+}
+
+function getUserScriptsApi() {
+  return chrome.userScripts || browser.userScripts;
+}
+
+function makeUserScriptMatch(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch (e) {
+    return null;
+  }
+  const protocol = parsed.protocol.slice(0, -1);
+  if (!/^(https?|file|ftp)$/.test(protocol)) return null;
+  if (protocol === 'file') return 'file:///*';
+  const path = parsed.pathname || '/';
+  return `${parsed.protocol}//${parsed.host}${path}*`;
+}
+
+/**
+ * Registers a short-lived userscript in MV3 runtimes and returns true on success.
+ * Fallback caller should use executeScript when this returns false.
+ */
+export async function registerUserScriptOnce(tabId, options) {
+  const api = getUserScriptsApi();
+  if (!api?.register || !options?.code || options[kFrameId] > 0) return false;
+  const tab = browser.tabs.get
+    ? await browser.tabs.get(tabId).catch(noop)
+    : null;
+  const match = makeUserScriptMatch(getTabUrl(tab || {}));
+  if (!match) return false;
+  const id = `vm-one-shot-${Date.now()}-${tabId}-${++userScriptSeq}`;
+  try {
+    await api.register([{
+      id,
+      matches: [match],
+      js: [{ code: options.code || '' }],
+      runAt: options[RUN_AT] || 'document_start',
+      allFrames: !!options.allFrames,
+      persistAcrossSessions: false,
+    }]);
+    const timer = setTimeout(() => {
+      api.unregister?.({ ids: [id] }).catch(noop);
+    }, USERSCRIPT_UNREGISTER_DELAY);
+    timer?.unref?.();
+    return true;
+  } catch (e) {
+    if (process.env.DEBUG) {
+      console.warn('userScripts.register fallback to executeScript', e);
+    }
+    return false;
+  }
 }
 
 /**
