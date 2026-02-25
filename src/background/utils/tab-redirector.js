@@ -120,7 +120,6 @@ ${code?.length > 1e6 ? code.slice(0, 1e6) + '...' : code}`;
       });
       executeScriptInTab(tabId, {
         code: `console.warn(${JSON.stringify(error)})`,
-        tryUserScripts: IS_MV3,
       });
       browser.tabs.update(tabId, { url });
     }

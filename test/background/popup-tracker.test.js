@@ -108,7 +108,6 @@ describe('popup-tracker startup', () => {
     expect(executeScriptInTab).toHaveBeenCalledWith(42, {
       code: '1',
       [RUN_AT]: 'document_start',
-      tryUserScripts: global.extensionManifest.manifest_version === 3,
     });
   });
 });
