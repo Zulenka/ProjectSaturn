@@ -44,10 +44,11 @@ Ship a Chromium MV3 build that preserves core Violentmonkey behavior for install
 
 Reference ADR:
 - `MV3_ARCHITECTURE_DECISIONS.md`
+- `MV3_RELEASE_SUPPORT_MATRIX.md`
 
-- [ ] Finalize Chromium support matrix and parity target for first MV3 release.
-- [ ] Decide and document injection strategy (`userScripts` vs `scripting` orchestration).
-- [ ] Decide expected behavior for request-header and cookie handling under MV3 constraints.
+- [x] Finalize Chromium support matrix and parity target for first MV3 release.
+- [x] Decide and document injection strategy (`userScripts` vs `scripting` orchestration).
+- [x] Decide expected behavior for request-header and cookie handling under MV3 constraints.
 - [ ] Publish design note in `#1934` and pin it as source of truth.
 - [ ] Create all child issues listed in this plan and link them to `#1934`.
 
