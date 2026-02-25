@@ -53,6 +53,7 @@ const nodeModules = resolve('node_modules');
 
 const pages = [
   'background',
+  'offscreen',
   'confirm',
   'options',
   'popup',

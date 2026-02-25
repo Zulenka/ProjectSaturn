@@ -19,7 +19,12 @@ global.browser = {
       icons: { 16: '' },
       options_ui: {},
     }),
+    getContexts: async () => [],
     getPlatformInfo: async () => ({}),
+  },
+  offscreen: {
+    createDocument: async () => {},
+    closeDocument: async () => {},
   },
   declarativeNetRequest: {
     updateSessionRules: async () => {},

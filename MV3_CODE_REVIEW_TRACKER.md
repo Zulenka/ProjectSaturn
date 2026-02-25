@@ -24,7 +24,7 @@ Primary implementation guidance: `deep-research-report.md`.
 | Phase | Scope | Related Findings | Status |
 | --- | --- | --- | --- |
 | P1 | Replace blocking/interception-dependent request logic with DNR ruleset orchestration (`static` + `dynamic/session` where needed), including rule lifecycle and priority strategy. | CR-MV3-01 | In progress |
-| P2 | Introduce offscreen-backed worker flow for DOM/network-adjacent tasks required by WebDAV + `GM_xmlhttpRequest` support paths; enforce runtime message boundaries. | CR-MV3-01 | Open |
+| P2 | Introduce offscreen-backed worker flow for DOM/network-adjacent tasks required by WebDAV + `GM_xmlhttpRequest` support paths; enforce runtime message boundaries. | CR-MV3-01 | In progress |
 | P3 | Replace imperative tab/script injection wrapper path with `chrome.userScripts.register` architecture, including update/unregister lifecycle and run-at/frame parity verification. | CR-MV3-02 | Open |
 | P4 | Hardening pass: permissions/CSP/WAR minimization, service-worker lifecycle resilience tests, and cold-start validation with DevTools closed. | CR-MV3-01, CR-MV3-02 | Open |
 
@@ -34,6 +34,8 @@ Primary implementation guidance: `deep-research-report.md`.
   - Added MV3 DNR session-rule interception for trusted `.user.js` install sources in `tab-redirector` (MV3 path), while preserving existing MV2 blocking gate and MV3 tab-update fallback flow.
   - Added MV3 `declarativeNetRequest` permission in manifest transformation for Chromium MV3 builds.
   - Added/updated regression tests for DNR setup and MV3 artifact/manifest expectations.
+  - Added MV3 offscreen bridge foundation (`src/background/utils/offscreen.js` + `src/offscreen/index.js`) and wired WebDAV XML parsing to offscreen in MV3 path.
+  - Added MV3 `offscreen` permission in manifest transformation and updated artifact checks.
 
 ## Evidence Pointers
 
