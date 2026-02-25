@@ -23,7 +23,12 @@ import {
   S_VALUE_PRE,
 } from './storage';
 import { clearStorageCache, onStorageChanged } from './storage-cache';
-import { getFrameDocId, getFrameDocIdAsObj, tabsOnRemoved } from './tabs';
+import {
+  executeScriptInTab,
+  getFrameDocId,
+  getFrameDocIdAsObj,
+  tabsOnRemoved,
+} from './tabs';
 import { addValueOpener, clearValueOpener, reifyValueOpener } from './values';
 import { ua } from './ua';
 
@@ -619,7 +624,7 @@ function injectContentRealm(toContent, tabId, frameId) {
   for (const [id, dataKey] of toContent) {
     const scr = cache.get(S_SCRIPT_PRE + id); // TODO: recreate if expired?
     if (!scr || scr.key.data !== dataKey) continue;
-    browser.tabs.executeScript(tabId, {
+    executeScriptInTab(tabId, {
       code: scr[__CODE].join(''),
       [RUN_AT]: `document_${scr[RUN_AT]}`.replace('body', 'start'),
       [kFrameId]: frameId,

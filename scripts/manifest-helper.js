@@ -54,6 +54,7 @@ function applyManifestTarget(data) {
     }
     permissions.push(perm);
   });
+  if (!permissions.includes('scripting')) permissions.push('scripting');
   data.permissions = permissions;
   if (hostPermissions.size) data.host_permissions = [...hostPermissions];
   else delete data.host_permissions;

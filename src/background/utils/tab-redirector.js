@@ -4,7 +4,13 @@ import cache from './cache';
 import { addPublicCommands, commands } from './init';
 import { getOption } from './options';
 import { parseMeta, matchUserScript } from './script';
-import { fileSchemeRequestable, getTabUrl, NEWTAB_URL_RE, tabsOnUpdated } from './tabs';
+import {
+  executeScriptInTab,
+  fileSchemeRequestable,
+  getTabUrl,
+  NEWTAB_URL_RE,
+  tabsOnUpdated,
+} from './tabs';
 import { FIREFOX } from './ua';
 
 addPublicCommands({
@@ -95,7 +101,7 @@ ${code?.length > 1e6 ? code.slice(0, 1e6) + '...' : code}`;
     if (tabId < 0) {
       console.warn(error);
     } else {
-      browser.tabs.executeScript(tabId, {
+      executeScriptInTab(tabId, {
         code: `console.warn(${JSON.stringify(error)})`,
       });
       browser.tabs.update(tabId, { url });

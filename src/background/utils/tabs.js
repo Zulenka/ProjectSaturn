@@ -219,6 +219,36 @@ export async function forEachTab(callback) {
 }
 
 /**
+ * MV2->MV3 compatibility wrapper for tab script execution.
+ * Returns an array of per-frame results like browser.tabs.executeScript.
+ */
+export async function executeScriptInTab(tabId, options) {
+  if (browser.tabs.executeScript) {
+    return browser.tabs.executeScript(tabId, options);
+  }
+  const api = chrome.scripting?.executeScript;
+  if (!api) {
+    throw new Error('tabs.executeScript and scripting.executeScript are unavailable');
+  }
+  const target = { tabId };
+  if (options[kFrameId] != null) target.frameIds = [options[kFrameId]];
+  if (options.allFrames) target.allFrames = true;
+  const injectDetails = { target };
+  if (options[RUN_AT] === 'document_start') injectDetails.injectImmediately = true;
+  if (options.file) injectDetails.files = [options.file];
+  else if (options.files) injectDetails.files = options.files;
+  else {
+    injectDetails.func = (source) => {
+      // eslint-disable-next-line no-eval
+      return eval(source);
+    };
+    injectDetails.args = [options.code || ''];
+  }
+  const result = await browser.scripting.executeScript(injectDetails);
+  return result.map(item => item.result);
+}
+
+/**
  * @param {string} [route] without #
  * @param {VMMessageSender} [src]
  */
