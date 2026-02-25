@@ -43,6 +43,10 @@ Example query:
 
 - Do not advance canary -> beta or beta -> stable while unresolved `mv3`+`regression` P0/P1 issues remain.
 - Reference `MV3_ROLLOUT_CHECKLIST.md` rollback triggers for immediate rollback conditions.
+- Run stage gates:
+  - `yarn rollout:mv3:canary`
+  - `yarn rollout:mv3:beta`
+  - `yarn rollout:mv3:stable`
 
 ## Repository constraint
 

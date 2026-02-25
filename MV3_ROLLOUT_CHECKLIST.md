@@ -6,10 +6,10 @@ Use this checklist when preparing Chromium MV3 releases.
 
 ## Pre-release gate
 
-- [ ] CI green on both tracks:
-  - [ ] `build:all`
-  - [ ] `build:all:mv3`
-  - [ ] `smoke:mv3:test`
+- [x] CI green on both tracks:
+  - [x] `build:all`
+  - [x] `build:all:mv3`
+  - [x] `smoke:mv3:test`
 - [x] Release workflow package targets confirmed:
   - [x] Chrome MV3
   - [x] Opera MV3
@@ -28,15 +28,25 @@ Latest local verification (2026-02-25):
 
 ## Staged rollout
 
-- [ ] Canary cohort (internal / early adopters) monitored.
+- [x] Canary cohort (internal / early adopters) monitored.
 - [ ] Beta rollout monitored for install, injection, and GM request regressions.
 - [ ] Stable rollout only after no open P0/P1 MV3 regressions.
+
+Gate commands:
+
+- Canary: `yarn rollout:mv3:canary`
+- Beta: `yarn rollout:mv3:beta`
+- Stable: `yarn rollout:mv3:stable`
 
 Current regression baseline (2026-02-25):
 
 - Open `mv3`+`regression` P0: `0`
 - Open `mv3`+`regression` P1: `0`
 - Command: `yarn report:mv3:triage`
+
+Canary gate execution (2026-02-25):
+
+- `yarn rollout:mv3:canary` -> `PASS`
 
 ## Runtime smoke checks (release candidate)
 
