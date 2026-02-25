@@ -171,9 +171,8 @@ const onUserJsRequest = (req) => {
   if (!cache.has(`bypass:${url}`)
   && ((isWhitelisted = whitelistRe.test(url)) || !blacklistRe.test(url))) {
     maybeInstallUserJs(tabId, url, isWhitelisted);
-    return CAN_BLOCK_INSTALL_INTERCEPT && (IS_FIREFOX
-      ? { cancel: true } // for sites with strict CSP in FF
-      : { redirectUrl: 'javascript:void 0' }); // eslint-disable-line no-script-url
+    // Using a real document URL avoids CSP errors from javascript: redirects in strict pages.
+    return CAN_BLOCK_INSTALL_INTERCEPT && { redirectUrl: 'about:blank' };
   }
 };
 const userJsFilter = {

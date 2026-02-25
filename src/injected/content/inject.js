@@ -293,8 +293,8 @@ function inject(item, iframeCb) {
   let iframeDoc;
   if (iframeCb) {
     iframe = makeElem('iframe', {
-      /* Preventing other content scripts */// eslint-disable-next-line no-script-url
-      src: 'javascript:void 0',
+      /* Preventing other content scripts */
+      src: 'about:blank',
       sandbox: 'allow-same-origin allow-scripts',
       style: 'display:none!important',
     });

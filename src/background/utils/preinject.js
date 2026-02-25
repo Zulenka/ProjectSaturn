@@ -155,9 +155,8 @@ const OPT_HANDLERS = {
     value = normalizeRealm(value);
     cache.destroy();
     if (injectInto) { // already initialized, so we should update the listener
-      if (value === CONTENT) {
-        toggleHeadersReceivedListener('removeListener');
-      } else if (isApplied && IS_FIREFOX && !xhrInject) {
+      toggleHeadersReceivedListener('removeListener');
+      if (isApplied && (IS_MV3 || IS_FIREFOX && !xhrInject && value !== CONTENT)) {
         toggleHeadersReceivedListener('addListener', API_CONFIG);
       }
     }
@@ -373,6 +372,7 @@ function togglePreinject(enable) {
     browser.webRequest.onSendHeaders[onOff](onSendHeaders, config);
   }
   if (!isApplied /* remove the listener */
+  || IS_MV3 /* add CSP detector for MV3 strict pages */
   || IS_FIREFOX && !xhrInject && injectInto !== CONTENT /* add 'nonce' detector */) {
     toggleHeadersReceivedListener(onOff, config);
   }
