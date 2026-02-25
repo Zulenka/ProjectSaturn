@@ -27,6 +27,8 @@ import {
   executeScriptInTab,
   getFrameDocId,
   getFrameDocIdAsObj,
+  injectableRe,
+  tabsOnUpdated,
   tabsOnRemoved,
 } from './tabs';
 import { addValueOpener, clearValueOpener, reifyValueOpener } from './values';
@@ -354,11 +356,24 @@ function toggleXhrInject(enable) {
 
 function togglePreinject(enable) {
   isApplied = enable;
-  // Using onSendHeaders because onHeadersReceived in Firefox fires *after* content scripts.
-  // And even in Chrome a site may be so fast that preinject on onHeadersReceived won't be useful.
   const onOff = `${enable ? 'add' : 'remove'}Listener`;
   const config = enable ? API_CONFIG : undefined;
-  browser.webRequest.onSendHeaders[onOff](onSendHeaders, config);
+  // MV3 can't rely on blocking request hooks, so we prewarm via tab URL updates.
+  if (IS_MV3) {
+    if (enable) {
+      try {
+        tabsOnUpdated.addListener(onTabUpdated, { properties: ['url'] });
+      } catch (e) {
+        tabsOnUpdated.addListener(onTabUpdated);
+      }
+    } else {
+      tabsOnUpdated.removeListener(onTabUpdated);
+    }
+  } else {
+    // Using onSendHeaders because onHeadersReceived in Firefox fires *after* content scripts.
+    // And even in Chrome a site may be so fast that preinject on onHeadersReceived won't be useful.
+    browser.webRequest.onSendHeaders[onOff](onSendHeaders, config);
+  }
   if (!isApplied /* remove the listener */
   || IS_FIREFOX && !xhrInject && injectInto !== CONTENT /* add 'nonce' detector */) {
     toggleHeadersReceivedListener(onOff, config);
@@ -388,6 +403,15 @@ function onSendHeaders(info) {
   const key = getKey(url, isTop);
   if (!cache.has(key) && !skippedTabs[tabId]) {
     prepare(key, url, isTop);
+  }
+}
+
+function onTabUpdated(tabId, { url }, tab) {
+  url ||= tab && tab.url;
+  if (!url || !injectableRe.test(url)) return;
+  const key = getKey(url, true);
+  if (!cache.has(key) && !skippedTabs[tabId]) {
+    prepare(key, url, true);
   }
 }
 

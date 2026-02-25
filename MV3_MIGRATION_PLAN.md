@@ -90,8 +90,8 @@ Exit criteria:
 ## M5: Injection Engine Port (Weeks 3-4)
 
 - [x] Replace MV2 `tabs.executeScript` usage in background injection paths.
-- [ ] Rework preinject timing logic that currently depends on MV2 request hooks.
-- [ ] Preserve `run_at`, frame handling, realm decisions, and cache behavior.
+- [x] Rework preinject timing logic that currently depends on MV2 request hooks.
+- [x] Preserve `run_at`, frame handling, realm decisions, and cache behavior.
 - [ ] Validate with strict CSP sites and multi-frame pages.
 
 Exit criteria:
