@@ -2,6 +2,7 @@
 set -euo pipefail
 
 REPO="${1:-violentmonkey/violentmonkey}"
+PARENT_ISSUE="${2:-1934}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DRAFTS="$ROOT/.github/issue-drafts/mv3"
 
@@ -38,6 +39,5 @@ echo
 echo "Created child issues:"
 printf '%s\n' "$u1" "$u2" "$u3" "$u4" "$u5" "$u6" "$u7" "$u8" "$u9" "$u10"
 echo
-echo "Next command (post parent issue #1934 comment draft):"
-echo "gh issue comment 1934 --repo \"$REPO\" --body-file \"$DRAFTS/parent-comment-1934.md\""
-
+echo "Next command (post parent issue #$PARENT_ISSUE comment draft):"
+echo "gh issue comment $PARENT_ISSUE --repo \"$REPO\" --body-file \"$DRAFTS/parent-comment-1934.md\""

@@ -49,11 +49,8 @@ Reference ADR:
 - [x] Finalize Chromium support matrix and parity target for first MV3 release.
 - [x] Decide and document injection strategy (`userScripts` vs `scripting` orchestration).
 - [x] Decide expected behavior for request-header and cookie handling under MV3 constraints.
-- [ ] Publish design note in `#1934` and pin it as source of truth.
-- [ ] Create all child issues listed in this plan and link them to `#1934`.
-
-Blocker note (2026-02-25):
-- Repository `Zulenka/ProjectSaturn` currently has GitHub issues disabled, so `#1934` publication/linking tasks are blocked until issues are enabled.
+- [x] Publish design note in tracking issue and pin it as source of truth.
+- [x] Create all child issues listed in this plan and link them to the parent tracker.
 
 Exit criteria:
 - Program assumptions are explicit and approved by maintainers.

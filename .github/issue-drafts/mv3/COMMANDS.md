@@ -5,7 +5,7 @@ These commands create the 10 MV3 child issues and post the parent issue comment 
 ## Create Child Issues
 
 ```bash
-./scripts/create-mv3-child-issues.sh violentmonkey/violentmonkey
+./scripts/create-mv3-child-issues.sh violentmonkey/violentmonkey 1934
 ```
 
 ## Post Parent Comment Draft (#1934)
@@ -13,4 +13,3 @@ These commands create the 10 MV3 child issues and post the parent issue comment 
 ```bash
 ./scripts/post-mv3-parent-comment.sh violentmonkey/violentmonkey 1934
 ```
-
