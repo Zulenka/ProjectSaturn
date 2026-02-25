@@ -111,7 +111,7 @@ Exit criteria:
 - [x] Replace blocking `.user.js` interception/redirect approach.
 - [ ] Preserve install UX for supported sources.
 - [ ] Handle unsupported flows with clear user messaging.
-- [ ] Add regression coverage for install entrypoints.
+- [x] Add regression coverage for install entrypoints.
 
 Exit criteria:
 - Script install flow is stable under MV3 and aligned with documented constraints.
@@ -128,7 +128,7 @@ Exit criteria:
 ## M9: UI/Action Compatibility (Week 7)
 
 - [ ] Move `browserAction` assumptions to `action` abstraction for Chromium MV3.
-- [ ] Update popup prefetch/injectability checks that rely on MV2 APIs.
+- [x] Update popup prefetch/injectability checks that rely on MV2 APIs.
 - [ ] Validate badge/menu states under worker wake/suspend behavior.
 
 Exit criteria:
