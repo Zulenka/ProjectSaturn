@@ -33,7 +33,7 @@ Ship a Chromium MV3 build that preserves core Violentmonkey behavior for install
 | MV3-04 | Service-worker-safe background runtime | P0 | In progress | TBD | Week 2 |
 | MV3-05 | Injection engine MV3 port | P0 | In progress | TBD | Weeks 3-4 |
 | MV3-06 | GM request/network interception redesign | P0 | In progress | TBD | Weeks 4-5 |
-| MV3-07 | `.user.js` install and redirect flow replacement | P0 | In progress | TBD | Week 5 |
+| MV3-07 | `.user.js` install and redirect flow replacement | P0 | Completed | TBD | Week 5 |
 | MV3-08 | Sync OAuth callback interception replacement | P1 | Completed | TBD | Week 6 |
 | MV3-09 | UI/action/popup compatibility polish | P1 | Completed | TBD | Week 7 |
 | MV3-10 | CI/release rollout and stabilization | P0 | In progress | TBD | Week 8 |
@@ -110,7 +110,7 @@ Exit criteria:
 
 - [x] Replace blocking `.user.js` interception/redirect approach.
 - [x] Preserve install UX for supported sources.
-- [ ] Handle unsupported flows with clear user messaging.
+- [x] Handle unsupported flows with clear user messaging.
 - [x] Add regression coverage for install entrypoints.
 
 Exit criteria:
