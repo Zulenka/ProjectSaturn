@@ -51,6 +51,7 @@ const API_EXTRA = [
   kResponseHeaders,
   browser.webRequest.OnHeadersReceivedOptions.EXTRA_HEADERS,
 ].filter(Boolean);
+let warnedHeadersReceivedCompat;
 const findCspHeader = h => h.name.toLowerCase() === 'content-security-policy';
 const CSP_RE = /(?:^|[;,])\s*(?:script-src(-elem)?|(d)efault-src)(\s+[^;,]+)/g;
 const NONCE_RE = /'nonce-([-+/=\w]+)'/;
@@ -128,6 +129,26 @@ export const reloadAndSkipScripts = async tab => {
   await browser.tabs.reload(tabId);
 };
 
+function toggleHeadersReceivedListener(onOff, config) {
+  if (onOff === 'removeListener') {
+    API_HEADERS_RECEIVED.removeListener(onHeadersReceived);
+    return;
+  }
+  try {
+    API_HEADERS_RECEIVED.addListener(onHeadersReceived, config, API_EXTRA);
+  } catch (e1) {
+    try {
+      // Fallback for runtimes that don't support extra options in this event mode.
+      API_HEADERS_RECEIVED.addListener(onHeadersReceived, config);
+    } catch (e2) {
+      if (process.env.DEBUG && !warnedHeadersReceivedCompat) {
+        warnedHeadersReceivedCompat = true;
+        console.warn('onHeadersReceived listener registration failed in this runtime.', e2 || e1);
+      }
+    }
+  }
+}
+
 const OPT_HANDLERS = {
   [BLACKLIST]: cache.destroy,
   defaultInjectInto(value) {
@@ -135,9 +156,9 @@ const OPT_HANDLERS = {
     cache.destroy();
     if (injectInto) { // already initialized, so we should update the listener
       if (value === CONTENT) {
-        API_HEADERS_RECEIVED.removeListener(onHeadersReceived);
+        toggleHeadersReceivedListener('removeListener');
       } else if (isApplied && IS_FIREFOX && !xhrInject) {
-        API_HEADERS_RECEIVED.addListener(onHeadersReceived, API_CONFIG, API_EXTRA);
+        toggleHeadersReceivedListener('addListener', API_CONFIG);
       }
     }
     injectInto = value;
@@ -325,9 +346,9 @@ function toggleXhrInject(enable) {
   xhrInject = enable;
   xhrInjectKey ??= extensionRoot.match(XHR_COOKIE_RE)[1];
   cache.destroy();
-  API_HEADERS_RECEIVED.removeListener(onHeadersReceived);
+  toggleHeadersReceivedListener('removeListener');
   if (enable) {
-    API_HEADERS_RECEIVED.addListener(onHeadersReceived, API_CONFIG, API_EXTRA);
+    toggleHeadersReceivedListener('addListener', API_CONFIG);
   }
 }
 
@@ -340,7 +361,7 @@ function togglePreinject(enable) {
   browser.webRequest.onSendHeaders[onOff](onSendHeaders, config);
   if (!isApplied /* remove the listener */
   || IS_FIREFOX && !xhrInject && injectInto !== CONTENT /* add 'nonce' detector */) {
-    API_HEADERS_RECEIVED[onOff](onHeadersReceived, config, config && API_EXTRA);
+    toggleHeadersReceivedListener(onOff, config);
   }
   tabsOnRemoved[onOff](onTabRemoved);
   browser.tabs.onReplaced[onOff](onTabReplaced);
