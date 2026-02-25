@@ -34,7 +34,7 @@ Ship a Chromium MV3 build that preserves core Violentmonkey behavior for install
 | MV3-05 | Injection engine MV3 port | P0 | In progress | TBD | Weeks 3-4 |
 | MV3-06 | GM request/network interception redesign | P0 | In progress | TBD | Weeks 4-5 |
 | MV3-07 | `.user.js` install and redirect flow replacement | P0 | In progress | TBD | Week 5 |
-| MV3-08 | Sync OAuth callback interception replacement | P1 | In progress | TBD | Week 6 |
+| MV3-08 | Sync OAuth callback interception replacement | P1 | Completed | TBD | Week 6 |
 | MV3-09 | UI/action/popup compatibility polish | P1 | Completed | TBD | Week 7 |
 | MV3-10 | CI/release rollout and stabilization | P0 | In progress | TBD | Week 8 |
 
@@ -120,7 +120,7 @@ Exit criteria:
 
 - [x] Replace blocking callback interception used in sync auth flow.
 - [x] Ensure auth tab lifecycle remains user-safe and deterministic.
-- [ ] Cover callback path with end-to-end tests for each sync provider in scope.
+- [x] Cover callback path with end-to-end tests for each sync provider in scope.
 
 Exit criteria:
 - OAuth sync setup works in MV3 for the supported provider list.
