@@ -6,6 +6,7 @@ let encoder;
 const IS_MV3 = extensionManifest.manifest_version === 3;
 const CAN_BLOCK_WEBREQUEST = !IS_MV3;
 let warnedMv3HeaderInject;
+let warnedRequestListenerCompat;
 
 export const VM_VERIFY = getUniqId('VM-Verify');
 /** @type {Object<string,GMReq.BG>} */
@@ -70,6 +71,23 @@ const API_EVENTS = {
   ],
 };
 
+function addWebRequestListener(name, listener, options) {
+  try {
+    browser.webRequest[name].addListener(listener, API_FILTER, options);
+  } catch (e1) {
+    // Fallback for runtimes with partial webRequest option support.
+    const fallbackOptions = options.filter(opt => `${opt}`.toLowerCase() !== 'extraheaders');
+    try {
+      browser.webRequest[name].addListener(listener, API_FILTER, fallbackOptions);
+    } catch (e2) {
+      if (process.env.DEBUG && !warnedRequestListenerCompat) {
+        warnedRequestListenerCompat = true;
+        console.warn('webRequest listener registration failed in this runtime.', e2 || e1);
+      }
+    }
+  }
+}
+
 /** @param {chrome.webRequest.WebRequestHeadersDetails} details */
 function onHeadersReceived({ [kResponseHeaders]: headers, requestId, url }) {
   const req = requests[verify[requestId]];
@@ -132,7 +150,7 @@ export function toggleHeaderInjector(reqId, headers) {
      * it adds a new internal registration even if the function reference is the same */
     if (isEmpty(headersToInject)) {
       API_EVENTS::forEachEntry(([name, [listener, ...options]]) => {
-        browser.webRequest[name].addListener(listener, API_FILTER, options);
+        addWebRequestListener(name, listener, options);
       });
     }
     if (!CAN_BLOCK_WEBREQUEST && !warnedMv3HeaderInject && !isEmpty(headers)) {
@@ -208,5 +226,5 @@ function string2byteString(str) {
 // Chrome 74-91 needs an extraHeaders listener at tab load start, https://crbug.com/1074282
 // We're attaching a no-op in non-blocking mode so it's very lightweight and fast.
 if (CHROME >= 74 && CHROME <= 91) {
-  browser.webRequest.onBeforeSendHeaders.addListener(noop, API_FILTER, EXTRA_HEADERS);
+  addWebRequestListener('onBeforeSendHeaders', noop, EXTRA_HEADERS);
 }
