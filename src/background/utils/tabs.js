@@ -36,7 +36,7 @@ export const getFrameDocIdAsObj = id => +id >= 0
  * @returns {string}
  */
 export const getTabUrl = tab => (
-  tab.pendingUrl || tab.url || ''
+  tab.url || tab.pendingUrl || ''
 );
 export const tabsOnUpdated = browser.tabs.onUpdated;
 export const tabsOnRemoved = browser.tabs.onRemoved;

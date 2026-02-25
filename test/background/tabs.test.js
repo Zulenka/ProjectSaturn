@@ -178,3 +178,18 @@ test('executeScriptInTab does not force immediate injection for document_end and
     expect(details.injectImmediately).toBeUndefined();
   });
 });
+
+test('getTabUrl prefers current tab.url over pendingUrl', () => {
+  const { getTabUrl } = require('@/background/utils/tabs');
+  expect(getTabUrl({
+    url: 'https://www.torn.com/forums.php#/!p=threads&f=61&t=16047184',
+    pendingUrl: 'chrome://startpageshared/',
+  })).toBe('https://www.torn.com/forums.php#/!p=threads&f=61&t=16047184');
+});
+
+test('getTabUrl falls back to pendingUrl when url is absent', () => {
+  const { getTabUrl } = require('@/background/utils/tabs');
+  expect(getTabUrl({
+    pendingUrl: 'https://example.com/pending',
+  })).toBe('https://example.com/pending');
+});
