@@ -105,6 +105,10 @@ describe('popup-tracker startup', () => {
     expect(failure[0]).toBe('failureReasonRestarted');
     expect(cachedSetPopup[0][0][INJECT_INTO]).toBe('off');
     expect(data.tab).toEqual(activeTab);
-    expect(executeScriptInTab).toHaveBeenCalledWith(42, { code: '1', [RUN_AT]: 'document_start' });
+    expect(executeScriptInTab).toHaveBeenCalledWith(42, {
+      code: '1',
+      [RUN_AT]: 'document_start',
+      tryUserScripts: global.extensionManifest.manifest_version === 3,
+    });
   });
 });
