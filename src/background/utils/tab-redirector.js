@@ -175,8 +175,13 @@ const userJsFilter = {
 if (CAN_BLOCK_INSTALL_INTERCEPT) {
   browser.webRequest.onBeforeRequest.addListener(onUserJsRequest, userJsFilter, ['blocking']);
 } else {
-  tabsOnUpdated.addListener((tabId, { url }) => {
+  const onTabUpdated = (tabId, { url }) => {
     if (!url || !USERJS_URL_RE.test(url)) return;
     onUserJsRequest({ method: 'GET', tabId, url });
-  });
+  };
+  try {
+    tabsOnUpdated.addListener(onTabUpdated, { properties: ['url'] });
+  } catch (e) {
+    tabsOnUpdated.addListener(onTabUpdated);
+  }
 }
