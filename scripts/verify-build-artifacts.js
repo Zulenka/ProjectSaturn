@@ -1,14 +1,12 @@
-import { readFile } from 'fs/promises';
-import { resolve } from 'path';
-
-const mode = (process.argv[2] || 'mv3').toLowerCase();
+const { readFile } = require('fs').promises;
+const { resolve } = require('path');
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-async function readManifest(dir) {
-  const file = resolve('dist-builds', dir, 'manifest.json');
+async function readManifest(rootDir, dir) {
+  const file = resolve(rootDir, dir, 'manifest.json');
   const raw = await readFile(file, 'utf8');
   try {
     return JSON.parse(raw);
@@ -32,22 +30,44 @@ function checkMv2Manifest(manifest, dir) {
   assert(manifest.browser_action, `${dir}: expected browser_action in MV2 manifest`);
 }
 
-async function verifyMv3() {
+async function verifyMv3(rootDir = 'dist-builds') {
   for (const dir of ['chrome-mv3', 'opera-mv3']) {
-    checkMv3Manifest(await readManifest(dir), dir);
+    checkMv3Manifest(await readManifest(rootDir, dir), dir);
   }
 }
 
-async function verifyDual() {
-  await verifyMv3();
+async function verifyDual(rootDir = 'dist-builds') {
+  await verifyMv3(rootDir);
   for (const dir of ['chrome', 'firefox', 'opera']) {
-    checkMv2Manifest(await readManifest(dir), dir);
+    checkMv2Manifest(await readManifest(rootDir, dir), dir);
   }
 }
 
-if (!['mv3', 'dual'].includes(mode)) {
-  throw new Error(`Unsupported mode "${mode}". Use "mv3" or "dual".`);
+async function run(mode = 'mv3', rootDir = 'dist-builds') {
+  const normalizedMode = `${mode}`.toLowerCase();
+  if (!['mv3', 'dual'].includes(normalizedMode)) {
+    throw new Error(`Unsupported mode "${normalizedMode}". Use "mv3" or "dual".`);
+  }
+  await (normalizedMode === 'dual' ? verifyDual(rootDir) : verifyMv3(rootDir));
+  return normalizedMode;
 }
 
-await (mode === 'dual' ? verifyDual() : verifyMv3());
-console.log(`Artifact verification passed (${mode}).`);
+module.exports = {
+  assert,
+  checkMv2Manifest,
+  checkMv3Manifest,
+  run,
+  verifyDual,
+  verifyMv3,
+};
+
+if (require.main === module) {
+  run(process.argv[2] || 'mv3')
+    .then((mode) => {
+      console.log(`Artifact verification passed (${mode}).`);
+    })
+    .catch((err) => {
+      console.error(err);
+      process.exitCode = 1;
+    });
+}
