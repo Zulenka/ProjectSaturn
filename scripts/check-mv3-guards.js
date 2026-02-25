@@ -17,6 +17,13 @@ const RULES = [
       'background/utils/tabs.js',
     ]),
   },
+  {
+    name: 'chrome.browserAction',
+    pattern: /\bchrome\.browserAction\b/g,
+    allow: new Set([
+      'background/utils/icon.js',
+    ]),
+  },
 ];
 
 function walk(dir, out) {
