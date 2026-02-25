@@ -118,8 +118,8 @@ Exit criteria:
 
 ## M8: Sync OAuth Callback Flow (Week 6)
 
-- [ ] Replace blocking callback interception used in sync auth flow.
-- [ ] Ensure auth tab lifecycle remains user-safe and deterministic.
+- [x] Replace blocking callback interception used in sync auth flow.
+- [x] Ensure auth tab lifecycle remains user-safe and deterministic.
 - [ ] Cover callback path with end-to-end tests for each sync provider in scope.
 
 Exit criteria:
