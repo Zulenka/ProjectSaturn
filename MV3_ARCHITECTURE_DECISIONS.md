@@ -62,6 +62,17 @@ This document records currently implemented decisions for Chromium MV3 migration
   - CI runs `build:all` and `build:all:mv3`.
   - Release and Edge release workflows package Chromium assets with `TARGET_MANIFEST=mv3`.
 
+## ADR-06: Offscreen document usage
+
+- Decision:
+  - Do not introduce an MV3 offscreen document in the current migration scope.
+- Rationale:
+  - Current MV3 background-path requirements are covered by service-worker-safe fallbacks.
+  - Clipboard and icon paths already avoid mandatory background DOM coupling.
+- Implementation:
+  - No `offscreen` permission is required for the current MV3 release contract.
+  - If a future feature requires background DOM APIs, add an explicit offscreen ADR and tests.
+
 ## Open decisions still requiring maintainer signoff
 
 - Final first-release parity contract for GM request header/cookie edge cases.
