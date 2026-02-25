@@ -108,7 +108,7 @@ Exit criteria:
 
 ## M7: Install Flow and Redirect Handling (Week 5)
 
-- [ ] Replace blocking `.user.js` interception/redirect approach.
+- [x] Replace blocking `.user.js` interception/redirect approach.
 - [ ] Preserve install UX for supported sources.
 - [ ] Handle unsupported flows with clear user messaging.
 - [ ] Add regression coverage for install entrypoints.
