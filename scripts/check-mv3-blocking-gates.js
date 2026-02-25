@@ -10,6 +10,8 @@ function run() {
   const tabRedirector = readFileSync(resolve('src/background/utils/tab-redirector.js'), 'utf8');
   const syncBase = readFileSync(resolve('src/background/sync/base.js'), 'utf8');
   const preinject = readFileSync(resolve('src/background/utils/preinject.js'), 'utf8');
+  const popupTracker = readFileSync(resolve('src/background/utils/popup-tracker.js'), 'utf8');
+  const tabs = readFileSync(resolve('src/background/utils/tabs.js'), 'utf8');
 
   assertHas(
     requestsCore,
@@ -58,6 +60,26 @@ function run() {
     preinject,
     /if\s*\(\s*enable\s*&&\s*!CAN_BLOCK_WEBREQUEST\s*\)\s*\{/,
     'preinject: xhrInject must be disabled in MV3 runtimes without blocking webRequest',
+  );
+  assertHas(
+    preinject,
+    /allowLegacyCodeFallback:\s*!IS_MV3/,
+    'preinject: MV3 code injection must keep legacy eval fallback disabled',
+  );
+  assertHas(
+    popupTracker,
+    /allowRegisterFallback:\s*false[\s\S]*allowLegacyCodeFallback:\s*false/,
+    'popup-tracker: MV3 probe path must disable legacy eval/register fallback side effects',
+  );
+  assertHas(
+    tabRedirector,
+    /allowRegisterFallback:\s*false[\s\S]*allowLegacyCodeFallback:\s*false/,
+    'tab-redirector: MV3 warning injection must disable legacy eval/register fallback side effects',
+  );
+  assertHas(
+    tabs,
+    /if\s*\(\s*options\.allowLegacyCodeFallback\s*===\s*false\s*\)\s*return\s*\[\]/,
+    'tabs: missing allowLegacyCodeFallback guard in executeScriptInTab',
   );
 
   console.log('MV3 blocking-gate checks passed.');
