@@ -36,7 +36,7 @@ Ship a Chromium MV3 build that preserves core Violentmonkey behavior for install
 | MV3-07 | `.user.js` install and redirect flow replacement | P0 | Completed | TBD | Week 5 |
 | MV3-08 | Sync OAuth callback interception replacement | P1 | Completed | TBD | Week 6 |
 | MV3-09 | UI/action/popup compatibility polish | P1 | Completed | TBD | Week 7 |
-| MV3-10 | CI/release rollout and stabilization | P0 | In progress | TBD | Week 8 |
+| MV3-10 | CI/release rollout and stabilization | P0 | Completed | TBD | Week 8 |
 
 ## Milestones and Checklists
 
@@ -141,7 +141,7 @@ Operational checklist:
 - `MV3_ROLLOUT_CHECKLIST.md`
 
 - [x] Add MV3 release assets and store upload paths.
-- [ ] Run staged rollout: canary -> beta -> stable.
+- [x] Run staged rollout: canary -> beta -> stable.
 - [x] Establish issue intake monitoring and `mv3` regression triage workflow.
 - [x] Publish migration notes and known limitations.
 - [x] Define rollback trigger and rollback procedure.

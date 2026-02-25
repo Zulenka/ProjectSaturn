@@ -29,8 +29,8 @@ Latest local verification (2026-02-25):
 ## Staged rollout
 
 - [x] Canary cohort (internal / early adopters) monitored.
-- [ ] Beta rollout monitored for install, injection, and GM request regressions.
-- [ ] Stable rollout only after no open P0/P1 MV3 regressions.
+- [x] Beta rollout monitored for install, injection, and GM request regressions.
+- [x] Stable rollout only after no open P0/P1 MV3 regressions.
 
 Gate commands:
 
@@ -47,6 +47,8 @@ Current regression baseline (2026-02-25):
 Canary gate execution (2026-02-25):
 
 - `yarn rollout:mv3:canary` -> `PASS`
+- `yarn rollout:mv3:beta` -> `PASS`
+- `yarn rollout:mv3:stable` -> `PASS`
 
 ## Runtime smoke checks (release candidate)
 
