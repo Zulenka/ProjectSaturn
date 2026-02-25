@@ -8,3 +8,5 @@ node_modules/
 /dist-assets/
 .eslintcache
 .env
+WSL_CODEX_SETUP.md
+*_LOCAL.md
