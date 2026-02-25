@@ -48,6 +48,7 @@ Primary implementation guidance: `deep-research-report.md`.
   - Fixed CSP-blocked fallback path by preferring `userScripts.execute` for MV3 `tryUserScripts` injections; extended preinject to opt in across frames.
   - Added opt-out guards for legacy eval fallback in MV3 probe/warn call sites (`popup-tracker`, `tab-redirector`) so they do not trigger CSP eval errors when userscripts APIs are unavailable.
   - Reduced false MV3 `noninjectable` states in popup initialization by treating empty probe results as injectable when userscripts APIs are present.
+  - Updated popup init to treat missing tab URL as unknown (probe first), avoiding premature noninjectable classification when URL is temporarily unavailable.
   - Disabled legacy eval fallback in MV3 preinject path to avoid CSP `unsafe-eval` violations in core userscript injection flow.
   - Added MV3 guard checks to enforce these fallback protections in `scripts/check-mv3-blocking-gates.js`.
   - Opened issue #16 to track minimum-version/runtime policy for required userscripts capability support in MV3 release channels.

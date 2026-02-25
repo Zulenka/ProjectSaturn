@@ -15,7 +15,7 @@ addOwnCommands({
     const { url = '', id: tabId } = tab;
     const data = commands.GetTabDomain(url);
     const badgeData = badges[tabId] || {};
-    let failure = getFailureReason(url, badgeData, '');
+    let failure = url ? getFailureReason(url, badgeData, '') : [''];
     // FF injects content scripts after update/install/reload
     let reset = !IS_FIREFOX && !failure[0] && badgeData[INJECT] === undefined;
     let cachedSetPopup = cache.pop(getCacheKey(tabId));
