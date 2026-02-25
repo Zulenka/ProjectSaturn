@@ -264,9 +264,13 @@ export async function executeScriptInTab(tabId, options) {
         console.warn('MV3: userScripts.execute is unavailable for a strict no-legacy-fallback path.');
       }
     }
+    const canTryRegister = options.allowRegisterFallback !== false && options[kFrameId] <= 0;
+    if (canTryRegister && options.preferRegister && await registerUserScriptOnce(tabId, options)) {
+      return [true];
+    }
     const executed = await executeUserScriptCode(tabId, options);
     if (executed) return executed;
-    if (options.allowRegisterFallback !== false
+    if (canTryRegister
     && await registerUserScriptOnce(tabId, options)) {
       return [true];
     }

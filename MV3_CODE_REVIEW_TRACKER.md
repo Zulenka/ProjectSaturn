@@ -62,6 +62,7 @@ Primary implementation guidance: `deep-research-report.md`.
   - Added `SKIP_GH_ISSUE_CHECKS=1` override in MV3 triage report script to allow local reporting flow without GitHub API access.
   - Added `MV3_BETA_TEST_CHECKLIST.md` for Chrome/Opera manual validation coverage (install, injection, `.user.js`, offscreen GM request, WebDAV, SW resilience).
   - Hardened MV3 one-shot userscript lifecycle by adding startup stale-registration cleanup (`userScripts.getScripts` + `unregister`) and wiring register-path calls through this cleanup gate.
+  - Shifted MV3 preinject content path to prefer one-shot `userScripts.register` in top-frame injections, with subframe-safe `userScripts.execute` fallback retained where frame-targeting is required.
   - Hardened icon context-menu setup against duplicate-id races by retrying create after remove on duplicate runtime errors to suppress repeated startup `runtime.lastError` noise.
   - Re-ran MV3 validation gates after hardening (`smoke:mv3:test`, `build:all:mv3`, `verify:artifacts:mv3`) with passing status.
 
