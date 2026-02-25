@@ -101,4 +101,33 @@ describe('openAuthPage', () => {
     onTabClosed(77);
     expect(webRequestOnBeforeRequest.removeListener).toHaveBeenCalledWith(webReqCall[0]);
   });
+
+  test('cleans up MV3 auth listeners on timeout', async () => {
+    jest.useFakeTimers();
+    const { tabsOnUpdated, tabsOnRemoved, webRequestOnBeforeRequest } = setupBrowserApis();
+    const { openAuthPage } = loadSyncBase(3);
+    const removedBefore = tabsOnRemoved.addListener.mock.calls.length;
+    await openAuthPage('https://example.com/auth', 'https://localhost:8443/callback');
+    const [onTabClosed] = tabsOnRemoved.addListener.mock.calls.slice(removedBefore)[0];
+    const [onUpdatedHandler] = tabsOnUpdated.addListener.mock.calls.at(-1);
+    jest.runOnlyPendingTimers();
+    expect(tabsOnUpdated.removeListener).toHaveBeenCalledWith(onUpdatedHandler);
+    expect(tabsOnRemoved.removeListener).toHaveBeenCalledWith(onTabClosed);
+    expect(webRequestOnBeforeRequest.removeListener).not.toHaveBeenCalled();
+  });
+
+  test('cleans up MV2 auth listeners on timeout', async () => {
+    jest.useFakeTimers();
+    const { tabsOnUpdated, tabsOnRemoved, webRequestOnBeforeRequest } = setupBrowserApis();
+    const { openAuthPage } = loadSyncBase(2);
+    const removedBefore = tabsOnRemoved.addListener.mock.calls.length;
+    const updatedRemoveBefore = tabsOnUpdated.removeListener.mock.calls.length;
+    await openAuthPage('https://example.com/auth', 'https://localhost:8443/callback');
+    const [onTabClosed] = tabsOnRemoved.addListener.mock.calls.slice(removedBefore)[0];
+    const [onBeforeRequestHandler] = webRequestOnBeforeRequest.addListener.mock.calls.at(-1);
+    jest.runOnlyPendingTimers();
+    expect(webRequestOnBeforeRequest.removeListener).toHaveBeenCalledWith(onBeforeRequestHandler);
+    expect(tabsOnRemoved.removeListener).toHaveBeenCalledWith(onTabClosed);
+    expect(tabsOnUpdated.removeListener.mock.calls.length).toBe(updatedRemoveBefore);
+  });
 });
