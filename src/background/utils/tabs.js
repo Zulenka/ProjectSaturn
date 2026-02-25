@@ -8,7 +8,7 @@ import { vetUrl } from './url';
 
 const openers = {};
 const openerTabIdSupported = !IS_FIREFOX // supported in Chrome
-  || !!(window.AbortSignal && browserWindows); // and FF57+ except mobile
+  || !!(globalThis.AbortSignal && browserWindows); // and FF57+ except mobile
 const EDITOR_ROUTE = extensionOptionsPage + ROUTE_SCRIPTS + '/'; // followed by id
 export const NEWTAB_URL_RE = re`/
 ^(

@@ -19,6 +19,9 @@ const SIZES = !FIREFOX
  * (e.g. Chrome wastes 40ms in our extension's process to read 4 icons for every tab). */
 const iconCache = {};
 const iconDataCache = {};
+const canRasterizeIcons = typeof Image === 'function'
+  && typeof document !== 'undefined'
+  && !!document.createElement;
 /** @return {string | Promise<string>} */
 export const getImageData = url => iconCache[url] || (iconCache[url] = loadIcon(url));
 // Firefox Android does not support such APIs, use noop
@@ -263,12 +266,17 @@ export function handleHotkeyOrMenu(id, tab) {
 }
 
 async function loadIcon(url) {
-  const img = new Image();
   const isOwn = url.startsWith(ICON_PREFIX);
-  img.src = isOwn ? url.slice(extensionOrigin.length) // must be a relative path in Firefox Android
+  const src = isOwn ? url.slice(extensionOrigin.length) // must be a relative path in Firefox Android
     : url.startsWith('data:') ? url
       : makeDataUri(url[0] === 'i' ? url : await loadStorageCache(url))
         || url;
+  if (!canRasterizeIcons) {
+    iconCache[url] = src;
+    return src;
+  }
+  const img = new Image();
+  img.src = src;
   await new Promise((resolve) => {
     img.onload = resolve;
     img.onerror = resolve;
