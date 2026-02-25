@@ -46,6 +46,7 @@ Use it as the source-of-truth companion for MV3 rollout and release notes.
 
 - Firefox release track remains MV2.
 - Chromium release tracks (Chrome + Opera + Edge) are packaged/published as MV3.
+- Chromium MV3 baseline now requires `minimum_chrome_version >= 135.0` for userscripts execute compatibility.
 - CI builds both tracks for verification (`build:all` + `build:all:mv3`).
 
 ## Remaining High-Risk Validation

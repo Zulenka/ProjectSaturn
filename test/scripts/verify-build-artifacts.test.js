@@ -25,6 +25,7 @@ describe('verify-build-artifacts', () => {
       manifest_version: 3,
       action: { default_title: 'x' },
       background: { service_worker: 'background/index.js' },
+      minimum_chrome_version: '135.0',
       permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen', 'userScripts'],
     };
     writeManifest(workDir, 'chrome-mv3', mv3);
@@ -37,6 +38,7 @@ describe('verify-build-artifacts', () => {
       manifest_version: 3,
       action: { default_title: 'x' },
       background: { service_worker: 'background/index.js' },
+      minimum_chrome_version: '135.0',
       permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen', 'userScripts'],
     };
     const mv2 = {
@@ -61,8 +63,27 @@ describe('verify-build-artifacts', () => {
       manifest_version: 3,
       action: { default_title: 'x' },
       background: { service_worker: 'background/index.js' },
+      minimum_chrome_version: '135.0',
       permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen', 'userScripts'],
     });
     await expect(run('mv3', join(workDir, 'dist-builds'))).rejects.toThrow('expected action in MV3 manifest');
+  });
+
+  test('fails when mv3 minimum_chrome_version is below userscripts execute requirement', async () => {
+    writeManifest(workDir, 'chrome-mv3', {
+      manifest_version: 3,
+      action: { default_title: 'x' },
+      background: { service_worker: 'background/index.js' },
+      minimum_chrome_version: '134.0',
+      permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen', 'userScripts'],
+    });
+    writeManifest(workDir, 'opera-mv3', {
+      manifest_version: 3,
+      action: { default_title: 'x' },
+      background: { service_worker: 'background/index.js' },
+      minimum_chrome_version: '135.0',
+      permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen', 'userScripts'],
+    });
+    await expect(run('mv3', join(workDir, 'dist-builds'))).rejects.toThrow('minimum_chrome_version >= 135.0');
   });
 });

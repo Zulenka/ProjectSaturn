@@ -38,6 +38,7 @@ test('buildManifest transforms Chromium target to MV3', async () => {
   expect(manifest.permissions).toContain('userScripts');
   expect(manifest.permissions).not.toContain('webRequestBlocking');
   expect(manifest.host_permissions).toContain('<all_urls>');
+  expect(manifest.minimum_chrome_version).toBe('135.0');
 });
 
 test('buildManifest rejects MV3 on Firefox target', async () => {

@@ -16,6 +16,7 @@ async function readManifest(rootDir, dir) {
 }
 
 function checkMv3Manifest(manifest, dir) {
+  const minChrome = parseInt(`${manifest.minimum_chrome_version || ''}`, 10) || 0;
   assert(manifest.manifest_version === 3, `${dir}: expected manifest_version=3`);
   assert(manifest.action, `${dir}: expected action in MV3 manifest`);
   assert(!manifest.browser_action, `${dir}: browser_action must be absent in MV3 manifest`);
@@ -26,6 +27,7 @@ function checkMv3Manifest(manifest, dir) {
   assert(manifest.permissions?.includes('offscreen'), `${dir}: expected offscreen permission in MV3 manifest`);
   assert(manifest.permissions?.includes('userScripts'), `${dir}: expected userScripts permission in MV3 manifest`);
   assert(!manifest.permissions?.includes('webRequestBlocking'), `${dir}: webRequestBlocking must be absent in MV3 manifest`);
+  assert(minChrome >= 135, `${dir}: expected minimum_chrome_version >= 135.0 for userScripts.execute support`);
 }
 
 function checkMv2Manifest(manifest, dir) {

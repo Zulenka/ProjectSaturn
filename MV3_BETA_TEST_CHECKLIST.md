@@ -9,6 +9,7 @@ Use this checklist for manual validation before broad MV3 rollout.
 - Build artifacts are fresh:
   - `yarn -s build:all:mv3`
 - Extension installed from unpacked `dist-builds/chrome-mv3` (Chrome) or `dist-builds/opera-mv3` (Opera).
+- Browser channel meets MV3 userscripts execution baseline (Chromium 135+).
 - Test with DevTools closed for service-worker lifecycle realism, then retest with DevTools open for diagnostics.
 
 ## Core Install + Injection
