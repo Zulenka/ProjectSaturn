@@ -274,7 +274,10 @@ export async function executeScriptInTab(tabId, options) {
     && await registerUserScriptOnce(tabId, options)) {
       return [true];
     }
-    if (options.allowLegacyCodeFallback === false) return [];
+    const allowLegacyCodeFallback = options.allowLegacyCodeFallback != null
+      ? options.allowLegacyCodeFallback
+      : extensionManifest.manifest_version !== 3;
+    if (!allowLegacyCodeFallback) return [];
   }
   if (browser.tabs.executeScript) {
     return browser.tabs.executeScript(tabId, options);

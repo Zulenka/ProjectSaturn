@@ -389,11 +389,42 @@ test('executeScriptInTab falls back when userScripts registration fails', async 
   const res = await executeScriptInTab(25, {
     code: 'window.__vm = false;',
     tryUserScripts: true,
+    allowLegacyCodeFallback: true,
     [kFrameId]: 0,
   });
   expect(chrome.userScripts.register).toHaveBeenCalledTimes(1);
   expect(chrome.scripting.executeScript).toHaveBeenCalled();
   expect(res).toEqual(['legacy']);
+});
+
+test('executeScriptInTab does not use legacy fallback by default in MV3 when userscripts path fails', async () => {
+  const oldManifestVersion = global.extensionManifest.manifest_version;
+  global.extensionManifest.manifest_version = 3;
+  try {
+    tabs.get = jest.fn(async () => ({ url: 'https://example.com/page' }));
+    tabs.executeScript = undefined;
+    browser.scripting = undefined;
+    chrome.scripting = {
+      executeScript: jest.fn((details, cb) => cb([{ result: 'legacy' }])),
+    };
+    chrome.userScripts = {
+      register: jest.fn(async () => {
+        throw new Error('no userscripts');
+      }),
+      unregister: jest.fn(async () => {}),
+    };
+    browser.userScripts = chrome.userScripts;
+    const res = await executeScriptInTab(25, {
+      code: 'window.__vm = false;',
+      tryUserScripts: true,
+      [kFrameId]: 0,
+    });
+    expect(chrome.userScripts.register).toHaveBeenCalledTimes(1);
+    expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+    expect(res).toEqual([]);
+  } finally {
+    global.extensionManifest.manifest_version = oldManifestVersion;
+  }
 });
 
 test('executeScriptInTab can disable legacy fallback when userscripts path is unavailable', async () => {

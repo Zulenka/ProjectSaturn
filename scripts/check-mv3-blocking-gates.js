@@ -78,8 +78,8 @@ function run() {
   );
   assertHas(
     tabs,
-    /if\s*\(\s*options\.allowLegacyCodeFallback\s*===\s*false\s*\)\s*return\s*\[\]/,
-    'tabs: missing allowLegacyCodeFallback guard in executeScriptInTab',
+    /const\s+allowLegacyCodeFallback\s*=\s*options\.allowLegacyCodeFallback\s*!=\s*null[\s\S]*?extensionManifest\.manifest_version\s*!==\s*3[\s\S]*?if\s*\(\s*!allowLegacyCodeFallback\s*\)\s*return\s*\[\]/,
+    'tabs: missing MV3 legacy fallback gate in executeScriptInTab',
   );
 
   console.log('MV3 blocking-gate checks passed.');
