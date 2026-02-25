@@ -98,8 +98,8 @@ Exit criteria:
 
 ## M6: GM Request and Network Model (Weeks 4-5)
 
-- [ ] Replace blocking request mutation approach with MV3-compatible strategy.
-- [ ] Define and document unavoidable parity differences.
+- [x] Replace blocking request mutation approach with MV3-compatible strategy.
+- [x] Define and document unavoidable parity differences.
 - [x] Port request header/cookie handling with explicit tests.
 - [ ] Validate GM request flows against real-world scripts.
 
