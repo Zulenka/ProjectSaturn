@@ -1,23 +1,27 @@
-import { sendCmdDirectly } from '@/common';
+import { sendCmdDirectly, sendMessageRetry } from '@/common';
 
 const runtime = global.browser.runtime;
 const extension = global.browser.extension;
+const storageLocal = global.browser.storage.local;
 const { extensionManifest } = global;
 
 let sendMessage;
 let getBackgroundPage;
 let manifestVersion;
+let storageGet;
 
 beforeEach(() => {
   sendMessage = runtime.sendMessage;
   getBackgroundPage = extension.getBackgroundPage;
   manifestVersion = extensionManifest.manifest_version;
+  storageGet = storageLocal.get;
 });
 
 afterEach(() => {
   runtime.sendMessage = sendMessage;
   extension.getBackgroundPage = getBackgroundPage;
   extensionManifest.manifest_version = manifestVersion;
+  storageLocal.get = storageGet;
 });
 
 test('sendCmdDirectly falls back to runtime messaging when no bg page exists', async () => {
@@ -56,4 +60,22 @@ test('sendCmdDirectly skips bg direct calls in MV3 mode', async () => {
   expect(bg.handleCommandMessage).not.toHaveBeenCalled();
   expect(runtime.sendMessage).toHaveBeenCalledWith({ cmd: 'GetData', data });
   expect(res).toEqual({ cmd: 'GetData', data, via: 'runtime' });
+});
+
+test('sendMessageRetry retries on transient port-closed errors', async () => {
+  runtime.sendMessage = jest.fn()
+    .mockRejectedValueOnce(new Error('The message port closed before a response was received.'))
+    .mockResolvedValueOnce({ ok: true });
+  storageLocal.get = jest.fn(async () => ({}));
+  const res = await sendMessageRetry({ cmd: 'Ping' }, 1000);
+  expect(res).toEqual({ ok: true });
+  expect(runtime.sendMessage).toHaveBeenCalledTimes(2);
+  expect(storageLocal.get).toHaveBeenCalled();
+});
+
+test('sendMessageRetry throws immediately on non-port errors', async () => {
+  runtime.sendMessage = jest.fn()
+    .mockRejectedValueOnce(new Error('permission denied'));
+  await expect(sendMessageRetry({ cmd: 'Ping' }, 1000)).rejects.toThrow('permission denied');
+  expect(runtime.sendMessage).toHaveBeenCalledTimes(1);
 });
