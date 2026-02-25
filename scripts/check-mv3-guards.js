@@ -18,6 +18,13 @@ const RULES = [
     ]),
   },
   {
+    name: 'scripting.executeScript',
+    pattern: /\bscripting\.executeScript\s*\(/g,
+    allow: new Set([
+      'background/utils/tabs.js',
+    ]),
+  },
+  {
     name: 'chrome.browserAction',
     pattern: /\bchrome\.browserAction\b/g,
     allow: new Set([

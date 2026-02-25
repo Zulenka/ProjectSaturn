@@ -65,6 +65,7 @@ Primary implementation guidance: `deep-research-report.md`.
   - Shifted MV3 preinject content path to prefer one-shot `userScripts.register` in top-frame injections, with subframe-safe `userScripts.execute` fallback retained where frame-targeting is required.
   - Disabled MV3 legacy execute-style fallback by default on `tryUserScripts` paths; legacy fallback now requires explicit opt-in to limit CSP/eval regressions.
   - Hardened icon context-menu setup against duplicate-id races by retrying create after remove on duplicate runtime errors to suppress repeated startup `runtime.lastError` noise.
+  - Expanded MV3 contract guards to block direct `scripting.executeScript` call sites outside the shared tabs wrapper and to enforce register-first/legacy-fallback-default-disabled runtime invariants.
   - Re-ran MV3 validation gates after hardening (`smoke:mv3:test`, `build:all:mv3`, `verify:artifacts:mv3`) with passing status.
 
 ## Evidence Pointers
