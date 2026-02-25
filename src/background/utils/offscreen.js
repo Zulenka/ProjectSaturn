@@ -1,6 +1,8 @@
 const IS_MV3 = extensionManifest.manifest_version === 3;
 const OFFSCREEN_URL = 'offscreen/index.html';
 const MSG_PARSE_WEBDAV = 'VMOffscreenParseWebDavDirectory';
+const MSG_HTTP_REQUEST = 'VMOffscreenHttpRequest';
+const MSG_HTTP_ABORT = 'VMOffscreenAbortRequest';
 
 let creatingOffscreen;
 
@@ -60,6 +62,28 @@ export async function parseWebDavDirectoryInOffscreen(xml) {
   return response.items || [];
 }
 
+export async function requestInOffscreen(payload) {
+  if (!IS_MV3) return null;
+  const response = await sendOffscreenMessage({
+    type: MSG_HTTP_REQUEST,
+    payload,
+  });
+  if (!response?.ok) {
+    throw new Error(response?.error || 'Offscreen HTTP request failed.');
+  }
+  return response.result;
+}
+
+export async function abortOffscreenRequest(id) {
+  if (!IS_MV3) return;
+  await sendOffscreenMessage({
+    type: MSG_HTTP_ABORT,
+    id,
+  }).catch(() => {});
+}
+
 export const OFFSCREEN_MESSAGES = {
   MSG_PARSE_WEBDAV,
+  MSG_HTTP_REQUEST,
+  MSG_HTTP_ABORT,
 };

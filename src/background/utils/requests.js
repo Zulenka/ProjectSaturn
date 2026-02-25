@@ -7,9 +7,13 @@ import { addPublicCommands, commands } from './init';
 import {
   FORBIDDEN_HEADER_RE, VM_VERIFY, requests, toggleHeaderInjector, verify, kCookie, kSetCookie,
 } from './requests-core';
+import { abortOffscreenRequest, requestInOffscreen } from './offscreen';
 import { getFrameDocIdAsObj, getFrameDocIdFromSrc } from './tabs';
 import { FIREFOX, navUA, navUAD } from './ua';
 import { vetUrl } from './url';
+const IS_MV3 = extensionManifest.manifest_version === 3;
+const HAS_XHR = typeof XMLHttpRequest === 'function';
+let warnedOffscreenRequestLimitations;
 
 addPublicCommands({
   /**
@@ -27,12 +31,14 @@ addPublicCommands({
       tabId,
       [kFrameId]: frameId,
       frame: getFrameDocIdAsObj(frameId),
-      xhr: new XMLHttpRequest(),
+      ...(HAS_XHR ? { xhr: new XMLHttpRequest() } : { offscreen: true }),
     };
     const cb = res => requests[id] && (
       sendTabCmd(tabId, 'HttpRequested', res, req.frame)
     );
-    return httpRequest(opts, events, src, cb)
+    return (IS_MV3 && !HAS_XHR
+      ? httpRequestViaOffscreen(opts, src, cb)
+      : httpRequest(opts, events, src, cb))
     .catch(err => cb({
       id,
       [ERROR]: [err.message || `${err}`, err.name],
@@ -44,7 +50,11 @@ addPublicCommands({
   AbortRequest(id) {
     const req = requests[id];
     if (req) {
-      req.xhr.abort();
+      if (req.offscreen) {
+        abortOffscreenRequest(id);
+      } else {
+        req.xhr.abort();
+      }
       clearRequest(req);
     }
   },
@@ -284,6 +294,63 @@ async function httpRequest(opts, events, src, cb) {
   xhr.onloadend = callback; // always send it for the internal cleanup
   xhr[onerror] = xhr[UPLOAD][onerror] = callback; // show it in tab's console if there's no callback
   xhr.send(body);
+}
+
+async function httpRequestViaOffscreen(opts, src, cb) {
+  const { id, anonymous, [kXhrType]: xhrType } = opts;
+  const req = requests[id];
+  if (!req || req.cb) return;
+  req.cb = cb;
+  req[kFileName] = opts[kFileName];
+  const url = vetUrl(opts.url, src.url, true);
+  const [body, contentType] = decodeBody(opts.data);
+  const headers = { ...(opts.headers || {}) };
+  if (contentType && !Object.keys(headers).some(name => name.toLowerCase() === 'content-type')) {
+    headers['Content-Type'] = contentType;
+  }
+  if (!warnedOffscreenRequestLimitations && process.env.DEBUG) {
+    warnedOffscreenRequestLimitations = true;
+    console.warn('MV3: GM_xmlhttpRequest is running via offscreen fetch fallback.');
+  }
+  const result = await requestInOffscreen({
+    id,
+    url,
+    method: opts.method || 'GET',
+    headers,
+    body,
+    responseType: xhrType || 'text',
+    timeout: Math.max(0, Math.min(0x7FFF_FFFF, opts.timeout)) || 0,
+    anonymous,
+  });
+  if (!requests[id]) return;
+  if (req[kFileName]) {
+    const blob = result.data instanceof Blob
+      ? result.data
+      : new Blob([result.data], { type: result.contentType || 'application/octet-stream' });
+    downloadBlob(blob, req[kFileName]);
+  }
+  /** @type {VMScriptResponseObject} */
+  const data = {
+    finalUrl: result.url || url,
+    readyState: 4,
+    status: result.status || 0,
+    statusText: result.statusText || '',
+    [kResponse]: result.data,
+    [kResponseHeaders]: result.headers || '',
+  };
+  const base = {
+    id,
+    blobbed: false,
+    chunked: false,
+    contentType: result.contentType || '',
+    [UPLOAD]: 0,
+    data,
+  };
+  await cb({ ...base, type: 'readystatechange' });
+  if (!requests[id]) return;
+  await cb({ ...base, type: 'load' });
+  if (!requests[id]) return;
+  await cb({ ...base, type: 'loadend' });
 }
 
 /** @param {GMReq.BG} req */
