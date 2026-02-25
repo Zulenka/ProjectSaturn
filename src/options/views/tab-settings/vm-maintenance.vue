@@ -18,6 +18,14 @@
         <strong>MV3 Runtime Health</strong>
         <span v-text="mv3Health?.checkedAt ? `Checked: ${formatDiagnosticsTime(mv3Health.checkedAt)}` : ''" />
       </div>
+      <div v-if="mv3Health?.extension" class="mv3-health-meta">
+        <span>
+          Version: {{mv3Health.extension.version || 'unknown'}}
+          <template v-if="mv3Health.extension.buildId">
+            ({{mv3Health.extension.buildId}})
+          </template>
+        </span>
+      </div>
       <div class="diagnostics-console-controls">
         <button @click="refreshMv3Health"
                 :disabled="store.batch || mv3HealthLoading"
@@ -305,6 +313,12 @@ onBeforeUnmount(() => {
 <style scoped>
 .diagnostics-console {
   margin-right: .5rem;
+}
+
+.mv3-health-meta {
+  margin-top: .25rem;
+  color: var(--color-wood);
+  font-size: .95em;
 }
 .mv3-health-body {
   margin: 0;
