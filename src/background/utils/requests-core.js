@@ -127,14 +127,6 @@ function onBeforeSendHeaders({ [kRequestHeaders]: headers, requestId, url }) {
 
 export function toggleHeaderInjector(reqId, headers) {
   if (headers) {
-    if (!CAN_BLOCK_WEBREQUEST) {
-      if (!warnedMv3HeaderInject) {
-        warnedMv3HeaderInject = true;
-        console.warn('MV3: request header injection is limited without webRequest blocking.');
-      }
-      headersToInject[reqId] = headers;
-      return;
-    }
     /* Listening even if `headers` array is empty to get the request's id.
      * Registering just once to avoid a bug in Chrome:
      * it adds a new internal registration even if the function reference is the same */
@@ -142,6 +134,10 @@ export function toggleHeaderInjector(reqId, headers) {
       API_EVENTS::forEachEntry(([name, [listener, ...options]]) => {
         browser.webRequest[name].addListener(listener, API_FILTER, options);
       });
+    }
+    if (!CAN_BLOCK_WEBREQUEST && !warnedMv3HeaderInject && !isEmpty(headers)) {
+      warnedMv3HeaderInject = true;
+      console.warn('MV3: request header injection is limited without webRequest blocking.');
     }
     // Adding even if empty so that the toggle-off `if` runs just once even when called many times
     headersToInject[reqId] = headers;
