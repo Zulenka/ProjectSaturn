@@ -102,16 +102,33 @@ init.then(async () => {
   forEachTab(updateState);
   if (!isApplied) setIcon(); // sets the dimmed icon as default
   if (contextMenus) {
+    await new Promise(resolve => {
+      if (!contextMenus.removeAll) {
+        resolve();
+        return;
+      }
+      try {
+        contextMenus.removeAll(() => {
+          ignoreChromeErrors();
+          resolve();
+        });
+      } catch (e) {
+        resolve();
+      }
+    });
     const addToIcon = (id, title, opts) => (
-      new Promise(resolve => (
+      new Promise(resolve => {
         contextMenus.create({
           contexts: [BROWSER_ACTION],
           id,
           title,
           ...opts,
-        }, resolve)
-      ))
-    ).then(ignoreChromeErrors);
+        }, () => {
+          ignoreChromeErrors();
+          resolve();
+        });
+      })
+    );
     const badgeChild = { parentId: KEY_SHOW_BADGE, type: 'radio' };
     await addToIcon(SKIP_SCRIPTS, i18n('skipScripts'));
     for (const args of [

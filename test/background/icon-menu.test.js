@@ -33,6 +33,16 @@ function setupBrowserApis() {
     setBadgeBackgroundColor: jest.fn(),
     setTitle: jest.fn(),
   };
+  const contextMenuOnClicked = getListenerApi();
+  global.chrome.contextMenus = {
+    create: jest.fn((opts, cb) => cb?.()),
+    update: jest.fn((id, opts, cb) => cb?.()),
+    removeAll: jest.fn(cb => cb?.()),
+    onClicked: contextMenuOnClicked,
+  };
+  return {
+    contextMenus: global.chrome.contextMenus,
+  };
 }
 
 describe('icon menu handlers', () => {
@@ -94,5 +104,14 @@ describe('icon menu handlers', () => {
     } finally {
       global.Image = RealImage;
     }
+  });
+
+  test('context menu init clears existing items before recreating ids', async () => {
+    jest.resetModules();
+    const { contextMenus } = setupBrowserApis();
+    expect(() => require('@/background/utils/icon')).not.toThrow();
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(contextMenus.removeAll).toHaveBeenCalled();
+    expect(contextMenus.create).toHaveBeenCalled();
   });
 });
