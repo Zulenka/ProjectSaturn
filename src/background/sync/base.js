@@ -749,7 +749,11 @@ export async function openAuthPage(url, redirectUri) {
       ['blocking'],
     );
   } else {
-    browser.tabs.onUpdated.addListener(handler);
+    try {
+      browser.tabs.onUpdated.addListener(handler, { tabId, properties: ['url'] });
+    } catch (e) {
+      browser.tabs.onUpdated.addListener(handler);
+    }
   }
 }
 
