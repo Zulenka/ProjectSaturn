@@ -10,6 +10,8 @@ Use it as the source-of-truth companion for MV3 rollout and release notes.
 - Request-header mutation is limited under MV3 because blocking `webRequest` is unavailable.
   - Current behavior: listeners remain active for request/response metadata capture.
   - Current behavior: custom header injection attempts are logged once in debug mode.
+- Offscreen relay calls can fail or hang independently of service-worker wake cycles.
+  - Current behavior: offscreen parse/request/abort message paths now apply bounded response timeouts with explicit failure signaling for caller recovery.
 - `xhrInject` preinject mode requires blocking `webRequest` and is disabled in MV3.
   - Current behavior: option is auto-disabled with debug warning.
 
