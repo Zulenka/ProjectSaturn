@@ -1,6 +1,7 @@
 import { i18n, ignoreChromeErrors, makeDataUri, noop } from '@/common';
 import { BLACKLIST } from '@/common/consts';
 import { nest, objectPick } from '@/common/object';
+import optionsDefaults from '@/common/options-defaults';
 import { getAlertsBadgeState, hookAlerts } from './alerts';
 import { addOwnCommands, commands, init } from './init';
 import { getOption, hookOptions, setOption } from './options';
@@ -53,6 +54,9 @@ export const badges = {};
 const KEY_SHOW_BADGE = 'showBadge';
 const KEY_BADGE_COLOR = 'badgeColor';
 const KEY_BADGE_COLOR_BLOCKED = 'badgeColorBlocked';
+const DEFAULT_SHOW_BADGE = optionsDefaults[KEY_SHOW_BADGE];
+const DEFAULT_BADGE_COLOR = optionsDefaults[KEY_BADGE_COLOR];
+const DEFAULT_BADGE_COLOR_BLOCKED = optionsDefaults[KEY_BADGE_COLOR_BLOCKED];
 const DUPLICATE_MENU_ID_RE = /duplicate id/i;
 const actionManifest = extensionManifest[BROWSER_ACTION] || {};
 const titleBlacklisted = i18n('failureReasonBlacklisted');
@@ -65,9 +69,9 @@ const ALERT_BADGE_TEXT = '•';
 const ALERT_BADGE_COLOR = '#d93025';
 let isApplied;
 /** @type {VMBadgeMode} */
-let showBadge;
-let badgeColor;
-let badgeColorBlocked;
+let showBadge = DEFAULT_SHOW_BADGE;
+let badgeColor = DEFAULT_BADGE_COLOR;
+let badgeColorBlocked = DEFAULT_BADGE_COLOR_BLOCKED;
 
 addOwnCommands({
   GetImageData: getImageData,
@@ -86,8 +90,11 @@ hookOptions((changes) => {
     jobs.push(updateBadge);
     contextMenus?.update(KEY_SHOW_BADGE + ':' + showBadge, {checked: true});
   }
-  if ((v = changes[KEY_BADGE_COLOR]) && (badgeColor = v)
-  || (v = changes[KEY_BADGE_COLOR_BLOCKED]) && (badgeColorBlocked = v)) {
+  if ((v = changes[KEY_BADGE_COLOR]) != null) {
+    badgeColor = v || DEFAULT_BADGE_COLOR;
+    jobs.push(updateBadgeColor);
+  } else if ((v = changes[KEY_BADGE_COLOR_BLOCKED]) != null) {
+    badgeColorBlocked = v || DEFAULT_BADGE_COLOR_BLOCKED;
     jobs.push(updateBadgeColor);
   }
   if (BLACKLIST in changes) {
@@ -100,9 +107,9 @@ hookOptions((changes) => {
 
 init.then(async () => {
   isApplied = getOption(IS_APPLIED);
-  showBadge = getOption(KEY_SHOW_BADGE);
-  badgeColor = getOption(KEY_BADGE_COLOR);
-  badgeColorBlocked = getOption(KEY_BADGE_COLOR_BLOCKED);
+  showBadge = getOption(KEY_SHOW_BADGE) ?? DEFAULT_SHOW_BADGE;
+  badgeColor = getOption(KEY_BADGE_COLOR) || DEFAULT_BADGE_COLOR;
+  badgeColorBlocked = getOption(KEY_BADGE_COLOR_BLOCKED) || DEFAULT_BADGE_COLOR_BLOCKED;
   forEachTab(updateState);
   if (!isApplied) setIcon(); // sets the dimmed icon as default
   if (contextMenus) {
@@ -240,8 +247,11 @@ function updateBadge({ id: tabId }, data = badges[tabId]) {
 function updateBadgeColor({ id: tabId }, data = badges[tabId]) {
   if (data) {
     const alertState = getAlertsBadgeState();
+    const color = alertState.show ? ALERT_BADGE_COLOR
+      : data[INJECT] ? badgeColor || DEFAULT_BADGE_COLOR
+        : badgeColorBlocked || DEFAULT_BADGE_COLOR_BLOCKED;
     browserAction.setBadgeBackgroundColor({
-      color: alertState.show ? ALERT_BADGE_COLOR : data[INJECT] ? badgeColor : badgeColorBlocked,
+      color,
       tabId,
     });
   }

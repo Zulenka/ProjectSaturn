@@ -106,6 +106,21 @@ describe('icon menu handlers', () => {
     }
   });
 
+  test('setBadge always provides a badge background color before options init settles', () => {
+    jest.resetModules();
+    setupBrowserApis();
+    const { setBadge } = require('@/background/utils/icon');
+    global.chrome.action.setBadgeBackgroundColor.mockClear();
+    setBadge([10], true, {
+      tab: { id: 78, url: 'https://example.com/' },
+      [kFrameId]: 0,
+      [kTop]: true,
+    });
+    const payload = global.chrome.action.setBadgeBackgroundColor.mock.calls.at(-1)?.[0];
+    expect(payload).toBeTruthy();
+    expect(payload.color).toBeTruthy();
+  });
+
   test('context menu init clears existing items before recreating ids', async () => {
     jest.resetModules();
     const { contextMenus } = setupBrowserApis();
