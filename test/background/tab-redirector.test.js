@@ -11,6 +11,7 @@ function setupBrowserApis() {
   const runtimeOnConnect = getListenerApi();
   global.browser.tabs.query = jest.fn(async () => []);
   global.browser.tabs.get = jest.fn(async id => ({ id, url: 'https://example.com/' }));
+  global.browser.tabs.executeScript = jest.fn(async () => []);
   global.browser.tabs.update = jest.fn(async () => ({}));
   global.browser.tabs.create = jest.fn(async () => ({ id: 55 }));
   global.browser.tabs.remove = jest.fn(async () => {});
@@ -37,6 +38,12 @@ function loadTabRedirector(manifestVersion) {
   require('@/background/utils/tab-redirector');
 }
 
+async function flushTasks() {
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise(resolve => setTimeout(resolve, 0));
+}
+
 function findUserJsBlockingListener(calls) {
   return calls.find(([, filter, options]) => (
     Array.isArray(options)
@@ -47,6 +54,10 @@ function findUserJsBlockingListener(calls) {
 }
 
 describe('tab-redirector listener mode', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   test('registers non-blocking tabs.onUpdated fallback for MV3 install interception', () => {
     const { tabsOnUpdated, webRequestOnBeforeRequest } = setupBrowserApis();
     loadTabRedirector(3);
@@ -65,5 +76,65 @@ describe('tab-redirector listener mode', () => {
     ));
     expect(onUpdatedUserJsCall).toBeFalsy();
     expect(findUserJsBlockingListener(webRequestOnBeforeRequest.addListener.mock.calls)).toBeTruthy();
+  });
+
+  test('MV3 fallback opens Confirm page for valid user script URL', async () => {
+    jest.resetModules();
+    const { tabsOnUpdated } = setupBrowserApis();
+    const targetUrl = 'https://example.com/test.user.js';
+    global.browser.tabs.get = jest.fn(async id => ({
+      id,
+      url: targetUrl,
+      active: false,
+      incognito: false,
+      windowId: 1,
+    }));
+    global.extensionManifest.manifest_version = 3;
+    const common = require('@/common');
+    const reqSpy = jest.spyOn(common, 'request').mockResolvedValue({
+      data: '// ==UserScript==\n// @name Example\n// ==/UserScript==\n',
+    });
+    require('@/background/utils/tab-redirector');
+    const handlers = tabsOnUpdated.addListener.mock.calls
+      .filter(([, filter]) => !filter || filter?.properties?.includes('url'))
+      .map(([fn]) => fn);
+    expect(handlers.length).toBeGreaterThan(0);
+    handlers.forEach(fn => fn(12, { url: targetUrl }, { id: 12, url: targetUrl }));
+    await flushTasks();
+    expect(reqSpy).toHaveBeenCalledWith(targetUrl);
+    expect(global.browser.tabs.update).toHaveBeenCalledWith(
+      12,
+      expect.objectContaining({ url: expect.stringContaining('confirm/index.html#') }),
+    );
+  });
+
+  test('MV3 fallback keeps navigation for invalid user script URL', async () => {
+    jest.resetModules();
+    const { tabsOnUpdated } = setupBrowserApis();
+    const targetUrl = 'https://example.com/not-a-script.user.js';
+    global.browser.tabs.get = jest.fn(async id => ({
+      id,
+      url: targetUrl,
+      active: false,
+      incognito: false,
+      windowId: 1,
+    }));
+    global.extensionManifest.manifest_version = 3;
+    const common = require('@/common');
+    const reqSpy = jest.spyOn(common, 'request').mockResolvedValue({
+      data: 'not a userscript',
+    });
+    require('@/background/utils/tab-redirector');
+    const handlers = tabsOnUpdated.addListener.mock.calls
+      .filter(([, filter]) => !filter || filter?.properties?.includes('url'))
+      .map(([fn]) => fn);
+    expect(handlers.length).toBeGreaterThan(0);
+    handlers.forEach(fn => fn(12, { url: targetUrl }, { id: 12, url: targetUrl }));
+    await flushTasks();
+    expect(reqSpy).toHaveBeenCalledWith(targetUrl);
+    const updatedUrls = global.browser.tabs.update.mock.calls
+      .map(([, options]) => options?.url)
+      .filter(Boolean);
+    expect(updatedUrls).toContain(targetUrl);
   });
 });
