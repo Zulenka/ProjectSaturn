@@ -312,6 +312,12 @@ footer {
   }
 }
 
+.vm-alerts {
+  background: rgba(217, 48, 37, .15);
+  border-top: 1px solid rgba(217, 48, 37, .35);
+  border-bottom: 1px solid rgba(217, 48, 37, .35);
+}
+
 .page-popup:not(.noninjectable):not(.blacklisted) {
   .failure-reason {
     // Making the warning noticeable

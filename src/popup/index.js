@@ -133,6 +133,7 @@ async function initialize() {
     failure: reason,
     failureText: failure,
   });
+  await refreshAlerts();
   if (cached) {
     for (const id in cached) handlers.SetPopup(...cached[id]);
   }
@@ -140,6 +141,18 @@ async function initialize() {
     port = browser.runtime.connect({ name: `Popup:${cached ? 'C' : ''}:${data.tab.id}` });
     port.onMessage.addListener(initialize); // for non-injectable tab
   }
+}
+
+async function refreshAlerts() {
+  const data = await sendCmdDirectly('AlertsGet', {
+    unreadOnly: true,
+    severity: 'warn',
+    limit: 10,
+  }).catch(() => null);
+  if (!data) return;
+  store.alerts = data.items || [];
+  store.alertsUnread = data.unreadCount || 0;
+  store.latestAlert = store.alerts[0] || null;
 }
 
 function isMyTab(tab) {

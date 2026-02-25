@@ -1,6 +1,7 @@
 import {
   cleanupRegisteredUserScripts,
   executeScriptInTab,
+  getUserScriptsHealth,
   registerUserScriptOnce,
 } from '@/background/utils/tabs';
 import { browser as browserApi } from '@/common/consts';
@@ -337,6 +338,30 @@ test('executeScriptInTab can disable legacy fallback when userscripts path is un
     [kFrameId]: 0,
   });
   expect(res).toEqual([]);
+});
+
+test('getUserScriptsHealth reports disabled when userscripts permission gate blocks registration', async () => {
+  chrome.userScripts = {
+    register: jest.fn(async () => {
+      throw new Error('Allow User Scripts is disabled');
+    }),
+    unregister: jest.fn(async () => {}),
+  };
+  browser.userScripts = chrome.userScripts;
+  const health = await getUserScriptsHealth(true);
+  expect(health.state).toBe('disabled');
+  expect(health.message).toMatch(/Allow User Scripts/i);
+});
+
+test('getUserScriptsHealth reports ok when probe registration succeeds', async () => {
+  chrome.userScripts = {
+    register: jest.fn(async () => {}),
+    unregister: jest.fn(async () => {}),
+  };
+  browser.userScripts = chrome.userScripts;
+  const health = await getUserScriptsHealth(true);
+  expect(health.state).toBe('ok');
+  expect(health.message).toBe('');
 });
 
 test('getTabUrl prefers current tab.url over pendingUrl', () => {

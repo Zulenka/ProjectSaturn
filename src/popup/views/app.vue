@@ -60,6 +60,13 @@
       <span v-text="store.failureText"/>
       <code v-text="store.blacklisted" v-if="store.blacklisted" class="ellipsis inline-block"/>
     </div>
+    <div class="failure-reason vm-alerts" v-if="store.alertsUnread">
+      <div class="flex">
+        <strong>Extension alerts ({{store.alertsUnread}})</strong>
+        <a class="ml-1" href="#" :tabIndex @click.prevent="onMarkAlertsRead">Mark read</a>
+      </div>
+      <div class="ellipsis" v-text="store.latestAlert?.message"/>
+    </div>
     <div v-if="showSettings" class="mb-1c menu settings">
       <settings-popup/>
       <button v-text="i18n('buttonClose')" @click="showSettings = false"/>
@@ -473,6 +480,12 @@ async function onInjectionFailureFix() {
   await makePause(100);
   await browser.tabs.reload();
   window.close();
+}
+async function onMarkAlertsRead() {
+  await sendCmdDirectly('AlertsMarkRead', { all: true });
+  store.alerts = [];
+  store.alertsUnread = 0;
+  store.latestAlert = null;
 }
 function onRemoveScript() {
   const { config, props: { id } } = extras.value.data;

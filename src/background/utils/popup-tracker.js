@@ -3,7 +3,7 @@ import cache from './cache';
 import { getData, getScriptsByURL } from './db';
 import { badges, getFailureReason } from './icon';
 import { addOwnCommands, addPublicCommands, commands } from './init';
-import { executeScriptInTab } from './tabs';
+import { executeScriptInTab, getUserScriptsHealth } from './tabs';
 
 /** @type {{[tabId: string]: chrome.runtime.Port}} */
 export const popupTabs = {};
@@ -28,6 +28,12 @@ addOwnCommands({
     if (!failure[0] && badgeData[INJECT] == null) {
       if (!await isInjectable(tabId, badgeData)) {
         failure = getFailureReason('');
+        if (extensionManifest.manifest_version === 3) {
+          const health = await getUserScriptsHealth?.();
+          if (health?.state === 'disabled' && health.message) {
+            failure = [`${failure[0]}\n\n${health.message}`, INJECT_INTO];
+          }
+        }
       } else if (reset && (reset = cachedSetPopup[0][0])[SCRIPTS].length) {
         /* We also show this after the background script is reloaded inside devtools, which keeps
            the content script connected, but breaks GM_xxxValue, GM_xhr, and so on. */

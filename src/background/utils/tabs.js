@@ -5,6 +5,7 @@ import { getOption } from './options';
 import { testScript } from './tester';
 import { CHROME, FIREFOX } from './ua';
 import { vetUrl } from './url';
+import { pushAlert } from './alerts';
 
 const openers = {};
 const openerTabIdSupported = !IS_FIREFOX // supported in Chrome
@@ -43,11 +44,19 @@ export const tabsOnRemoved = browser.tabs.onRemoved;
 export let injectableRe = /^(https?|file|ftps?):/;
 export let fileSchemeRequestable;
 const USERSCRIPT_UNREGISTER_DELAY = 30e3;
+const USERSCRIPT_HEALTH_TTL = 60e3;
+const USERSCRIPT_DISABLED_RE = /allow user scripts|user scripts? (?:is|are)? ?(?:disabled|not enabled|not allowed)|not been granted permission|access to user scripts|cannot access user scripts/i;
 let userScriptSeq = 0;
 const registeredUserScriptsByTab = new Map();
 let warnedMissingUserScriptsApi;
 let warnedMissingUserScriptsExecute;
 let cookieStorePrefix;
+let userScriptsHealth = {
+  checkedAt: 0,
+  detail: '',
+  message: '',
+  state: 'unknown',
+};
 
 try {
   // onUpdated is filterable only in desktop FF 61+
@@ -314,6 +323,77 @@ function getUserScriptsApi() {
   return chrome.userScripts || browser.userScripts;
 }
 
+function getUserScriptsEnableMessage() {
+  const detailsPage = chrome.runtime?.id
+    ? `chrome://extensions/?id=${chrome.runtime.id}`
+    : 'your browser extension details page';
+  return [
+    'Allow User Scripts is disabled for Violentmonkey.',
+    `Open ${detailsPage} (or opera://extensions), enable "Allow User Scripts", then reload this tab.`,
+  ].join(' ');
+}
+
+async function probeUserScriptsHealth() {
+  const api = getUserScriptsApi();
+  if (!api?.register) {
+    return {
+      state: extensionManifest.manifest_version === 3 && !IS_FIREFOX ? 'disabled' : 'unsupported',
+      message: extensionManifest.manifest_version === 3 && !IS_FIREFOX
+        ? getUserScriptsEnableMessage()
+        : '',
+      detail: 'userScripts.register missing',
+    };
+  }
+  const id = `vm-health-check-${Date.now()}-${++userScriptSeq}`;
+  try {
+    await api.register([{
+      id,
+      matches: ['https://example.invalid/*'],
+      js: [{ code: 'void 0;' }],
+      runAt: 'document_start',
+      persistAcrossSessions: false,
+    }]);
+    await api.unregister?.({ ids: [id] }).catch(noop);
+    return {
+      state: 'ok',
+      message: '',
+      detail: '',
+    };
+  } catch (err) {
+    const detail = `${err?.message || err || ''}`.slice(0, 400);
+    const state = USERSCRIPT_DISABLED_RE.test(detail) ? 'disabled' : 'error';
+    return {
+      state,
+      message: state === 'disabled' ? getUserScriptsEnableMessage() : '',
+      detail,
+    };
+  }
+}
+
+/**
+ * @returns {Promise<{state: 'ok'|'disabled'|'unsupported'|'error'|'unknown', message: string, detail: string}>}
+ */
+export async function getUserScriptsHealth(force) {
+  const now = Date.now();
+  if (!force && now - userScriptsHealth.checkedAt < USERSCRIPT_HEALTH_TTL) {
+    return userScriptsHealth;
+  }
+  userScriptsHealth = {
+    ...await probeUserScriptsHealth(),
+    checkedAt: now,
+  };
+  if (userScriptsHealth.state === 'disabled' && userScriptsHealth.message) {
+    void pushAlert({
+      code: 'mv3.userScriptsDisabled',
+      severity: 'warn',
+      message: userScriptsHealth.message,
+      details: { detail: userScriptsHealth.detail },
+      fingerprint: 'mv3.userScriptsDisabled',
+    });
+  }
+  return userScriptsHealth;
+}
+
 /**
  * Executes code in MV3 via userScripts API when available (Chrome 135+).
  * Returns null when unavailable/unsupported so callers can fallback.
@@ -445,4 +525,8 @@ export async function reloadTabForScript(script) {
   if (injectableRe.test(url) && testScript(url, script)) {
     return browser.tabs.reload(id);
   }
+}
+
+if (extensionManifest.manifest_version === 3) {
+  void getUserScriptsHealth(true);
 }

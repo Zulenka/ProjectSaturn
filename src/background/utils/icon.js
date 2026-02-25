@@ -1,6 +1,7 @@
 import { i18n, ignoreChromeErrors, makeDataUri, noop } from '@/common';
 import { BLACKLIST } from '@/common/consts';
 import { nest, objectPick } from '@/common/object';
+import { getAlertsBadgeState, hookAlerts } from './alerts';
 import { addOwnCommands, commands, init } from './init';
 import { getOption, hookOptions, setOption } from './options';
 import { popupTabs } from './popup-tracker';
@@ -59,6 +60,8 @@ const iconDefault = (actionManifest.default_icon?.[16] || 'public/images/icon16b
 const titleDisabled = i18n('menuScriptDisabled');
 const titleNoninjectable = i18n('failureReasonNoninjectable');
 const titleSkipped = i18n('skipScriptsMsg');
+const ALERT_BADGE_TEXT = '•';
+const ALERT_BADGE_COLOR = '#d93025';
 let isApplied;
 /** @type {VMBadgeMode} */
 let showBadge;
@@ -155,6 +158,12 @@ tabsOnUpdated.addListener((tabId, { url }, tab) => {
     if (title) updateState(tab, resetBadgeData(tabId, null), title);
   }
 }, FIREFOX && { properties: ['status'] });
+hookAlerts(() => {
+  forEachTab(tab => {
+    updateBadge(tab);
+    updateBadgeColor(tab);
+  });
+});
 
 function resetBadgeData(tabId, isInjected) {
   // 'total' and 'unique' must match showBadge in options-defaults.js
@@ -203,8 +212,9 @@ export function setBadge(ids, reset, { tab, [kFrameId]: frameId, [kTop]: isTop }
 
 function updateBadge({ id: tabId }, data = badges[tabId]) {
   if (data) {
+    const alertState = getAlertsBadgeState();
     browserAction.setBadgeText({
-      text: `${data[showBadge] || ''}`,
+      text: alertState.show ? ALERT_BADGE_TEXT : `${data[showBadge] || ''}`,
       tabId,
     });
   }
@@ -212,8 +222,9 @@ function updateBadge({ id: tabId }, data = badges[tabId]) {
 
 function updateBadgeColor({ id: tabId }, data = badges[tabId]) {
   if (data) {
+    const alertState = getAlertsBadgeState();
     browserAction.setBadgeBackgroundColor({
-      color: data[INJECT] ? badgeColor : badgeColorBlocked,
+      color: alertState.show ? ALERT_BADGE_COLOR : data[INJECT] ? badgeColor : badgeColorBlocked,
       tabId,
     });
   }

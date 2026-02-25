@@ -1,4 +1,5 @@
 import { addOwnCommands } from './init';
+import { pushAlert } from './alerts';
 import storage from './storage';
 
 const DIAGNOSTICS_STORAGE_KEY = 'diagnosticsLog';
@@ -290,10 +291,22 @@ export function logBackgroundAction(event, details, level = 'info') {
 }
 
 export function logBackgroundError(event, error, details) {
+  const alertMessage = `${event}: ${
+    error instanceof Error
+      ? error.message
+      : `${error || 'Unknown error'}`
+  }`;
   appendEntry(createEntry('error', 'error', event, {
     ...details,
     error: sanitizeError(error),
   }), true);
+  void pushAlert({
+    code: `bg.${event}`,
+    severity: 'error',
+    message: alertMessage,
+    details: sanitizeValue(details),
+    fingerprint: `bg.${event}:${alertMessage}`,
+  });
 }
 
 export function logCommandReceived({ cmd, data, mode, src }) {
