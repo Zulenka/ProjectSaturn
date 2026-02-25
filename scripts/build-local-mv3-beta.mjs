@@ -3,8 +3,14 @@ import { cp, mkdir, readFile, rm } from 'fs/promises';
 import { resolve } from 'path';
 
 const DIST_DIR = resolve('dist');
-const UNPACKED_DIR = resolve('dist-builds/chrome-mv3');
 const ASSETS_DIR = resolve('dist-assets');
+const target = (process.argv[2] || process.env.TARGET_BROWSER || 'chrome').toLowerCase();
+
+if (!['chrome', 'opera'].includes(target)) {
+  throw new Error(`Unsupported TARGET_BROWSER for local MV3 beta build: ${target}`);
+}
+
+const UNPACKED_DIR = resolve(`dist-builds/${target}-mv3`);
 
 function run(cmd, env = {}) {
   console.log(`> ${cmd}`);
@@ -22,12 +28,14 @@ function getVersion(pkg) {
 }
 
 async function main() {
+  const buildScript = `build:${target}-mv3`;
+  const targetLabel = target === 'chrome' ? 'beta' : `beta-${target}`;
   // 1) Build MV3 runtime output and baseline export.
-  run('npm run build:chrome-mv3');
+  run(`npm run ${buildScript}`);
 
   // 2) Apply beta manifest to dist before packaging.
   run('npx gulp manifest', {
-    TARGET_BROWSER: 'chrome',
+    TARGET_BROWSER: target,
     TARGET_MANIFEST: 'mv3',
     BETA: '1',
   });
@@ -35,7 +43,7 @@ async function main() {
   // 3) Package zip artifact.
   const pkg = JSON.parse(await readFile(resolve('package.json'), 'utf8'));
   const version = getVersion(pkg);
-  const zipName = `Violentmonkey-beta-webext-beta-v${version}.zip`;
+  const zipName = `Violentmonkey-beta-webext-${targetLabel}-v${version}.zip`;
   const zipPath = resolve('dist-assets', zipName);
   await mkdir(ASSETS_DIR, { recursive: true });
   await rm(zipPath, { force: true });
