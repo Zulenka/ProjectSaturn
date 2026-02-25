@@ -131,3 +131,89 @@ describe('openAuthPage', () => {
     expect(tabsOnUpdated.removeListener.mock.calls.length).toBe(updatedRemoveBefore);
   });
 });
+
+describe('BaseService sync transactions', () => {
+  test('imports remote script data on first sync transaction', async () => {
+    setupBrowserApis();
+    const { BaseService } = loadSyncBase(3);
+    const plugin = require('@/background/plugin');
+    const db = require('@/background/utils/db');
+    const updateSpy = jest.spyOn(plugin.script, 'update').mockResolvedValue({});
+    const listSpy = jest.spyOn(plugin.script, 'list').mockResolvedValue([]);
+    const sortSpy = jest.spyOn(db, 'sortScripts').mockResolvedValue(false);
+    const metaStore = {};
+    const remoteUri = 'remote-script';
+    const getRemoteSpy = jest.fn(async () => JSON.stringify({
+      version: 1,
+      code: `\
+// ==UserScript==
+// @name Remote Script
+// @version 1.0.0
+// ==/UserScript==
+`,
+      more: {
+        enabled: 1,
+        update: 1,
+        lastUpdated: 1700,
+      },
+    }));
+    const putSpy = jest.fn(async () => {});
+    const removeSpy = jest.fn(async () => {});
+    const TestService = BaseService.extend({
+      name: 'mv3-test-sync',
+      displayName: 'MV3 Test Sync',
+      get: getRemoteSpy,
+      put: putSpy,
+      remove: removeSpy,
+      async getSyncData() {
+        return [
+          {
+            name: VIOLENTMONKEY,
+            data: {
+              timestamp: 1000,
+              info: {
+                [remoteUri]: {
+                  modified: 1700,
+                  position: 2,
+                },
+              },
+            },
+          },
+          [
+            {
+              uri: remoteUri,
+              name: `vm@2-${remoteUri}`,
+            },
+          ],
+          [],
+        ];
+      },
+    });
+    const service = new TestService();
+    service.config = {
+      get(key, def) {
+        return key in metaStore ? metaStore[key] : def;
+      },
+      set(key, value) {
+        metaStore[key] = value;
+      },
+    };
+    await service._sync();
+    expect(getRemoteSpy).toHaveBeenCalledWith(expect.objectContaining({ uri: remoteUri }));
+    expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({
+      code: expect.stringContaining('==UserScript=='),
+      position: 2,
+      props: expect.objectContaining({ lastModified: 1700 }),
+    }));
+    expect(sortSpy).toHaveBeenCalled();
+    expect(metaStore.meta).toEqual(expect.objectContaining({
+      timestamp: 1000,
+      lastSync: expect.any(Number),
+    }));
+    expect(putSpy).not.toHaveBeenCalled();
+    expect(removeSpy).not.toHaveBeenCalled();
+    updateSpy.mockRestore();
+    listSpy.mockRestore();
+    sortSpy.mockRestore();
+  });
+});
