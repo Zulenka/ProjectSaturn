@@ -9,6 +9,7 @@ function setupBrowserApis() {
   const tabsOnCreated = getListenerApi();
   const webRequestOnBeforeRequest = getListenerApi();
   const runtimeOnConnect = getListenerApi();
+  const dnrUpdateSessionRules = jest.fn(async () => {});
   global.browser.tabs.query = jest.fn(async () => []);
   global.browser.tabs.get = jest.fn(async id => ({ id, url: 'https://example.com/' }));
   global.browser.tabs.executeScript = jest.fn(async () => []);
@@ -23,12 +24,16 @@ function setupBrowserApis() {
   global.browser.webRequest = {
     onBeforeRequest: webRequestOnBeforeRequest,
   };
+  global.browser.declarativeNetRequest = {
+    updateSessionRules: dnrUpdateSessionRules,
+  };
   global.chrome.i18n = {
     getMessage: jest.fn((name) => name),
   };
   return {
     tabsOnUpdated,
     webRequestOnBeforeRequest,
+    dnrUpdateSessionRules,
   };
 }
 
@@ -59,23 +64,25 @@ describe('tab-redirector listener mode', () => {
   });
 
   test('registers non-blocking tabs.onUpdated fallback for MV3 install interception', () => {
-    const { tabsOnUpdated, webRequestOnBeforeRequest } = setupBrowserApis();
+    const { tabsOnUpdated, webRequestOnBeforeRequest, dnrUpdateSessionRules } = setupBrowserApis();
     loadTabRedirector(3);
     const onUpdatedUserJsCall = tabsOnUpdated.addListener.mock.calls.find(([, filter]) => (
       filter?.properties?.length === 1 && filter.properties[0] === 'url'
     ));
     expect(onUpdatedUserJsCall).toBeTruthy();
     expect(findUserJsBlockingListener(webRequestOnBeforeRequest.addListener.mock.calls)).toBeFalsy();
+    expect(dnrUpdateSessionRules).toHaveBeenCalledTimes(1);
   });
 
   test('registers blocking webRequest interception for MV2 install flow', () => {
-    const { tabsOnUpdated, webRequestOnBeforeRequest } = setupBrowserApis();
+    const { tabsOnUpdated, webRequestOnBeforeRequest, dnrUpdateSessionRules } = setupBrowserApis();
     loadTabRedirector(2);
     const onUpdatedUserJsCall = tabsOnUpdated.addListener.mock.calls.find(([, filter]) => (
       filter?.properties?.length === 1 && filter.properties[0] === 'url'
     ));
     expect(onUpdatedUserJsCall).toBeFalsy();
     expect(findUserJsBlockingListener(webRequestOnBeforeRequest.addListener.mock.calls)).toBeTruthy();
+    expect(dnrUpdateSessionRules).not.toHaveBeenCalled();
   });
 
   test('MV3 fallback opens Confirm page for valid user script URL', async () => {

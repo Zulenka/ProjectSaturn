@@ -33,6 +33,7 @@ test('buildManifest transforms Chromium target to MV3', async () => {
   expect(manifest.browser_action).toBeFalsy();
   expect(manifest.background?.service_worker).toBeTruthy();
   expect(manifest.permissions).toContain('scripting');
+  expect(manifest.permissions).toContain('declarativeNetRequest');
   expect(manifest.permissions).not.toContain('webRequestBlocking');
   expect(manifest.host_permissions).toContain('<all_urls>');
 });

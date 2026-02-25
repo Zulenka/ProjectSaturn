@@ -21,6 +21,9 @@ global.browser = {
     }),
     getPlatformInfo: async () => ({}),
   },
+  declarativeNetRequest: {
+    updateSessionRules: async () => {},
+  },
   tabs: {
     onRemoved: { addListener: () => {} },
     onReplaced: { addListener: () => {} },

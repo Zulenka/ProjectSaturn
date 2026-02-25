@@ -22,6 +22,7 @@ function checkMv3Manifest(manifest, dir) {
   assert(manifest.background?.service_worker, `${dir}: expected background.service_worker in MV3 manifest`);
   assert(!manifest.background?.scripts, `${dir}: background.scripts must be absent in MV3 manifest`);
   assert(manifest.permissions?.includes('scripting'), `${dir}: expected scripting permission in MV3 manifest`);
+  assert(manifest.permissions?.includes('declarativeNetRequest'), `${dir}: expected declarativeNetRequest permission in MV3 manifest`);
   assert(!manifest.permissions?.includes('webRequestBlocking'), `${dir}: webRequestBlocking must be absent in MV3 manifest`);
 }
 

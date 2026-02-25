@@ -14,7 +14,17 @@ import {
 import { FIREFOX } from './ua';
 const IS_MV3 = extensionManifest.manifest_version === 3;
 const CAN_BLOCK_INSTALL_INTERCEPT = IS_FIREFOX || !IS_MV3;
+const CAN_USE_DNR_INSTALL_INTERCEPT = IS_MV3 && !!browser.declarativeNetRequest?.updateSessionRules;
 const USERJS_URL_RE = /\.user\.js([?#]|$)/;
+const DNR_INSTALL_RULE_ID = 940001;
+const DNR_INSTALL_REGEX_FILTER = '^https:\\/\\/(?:'
+  + 'update\\.(?:greasy|sleazy)fork\\.(?:org|cc)\\/scripts'
+  + '|(?:greasy|sleazy)fork\\.(?:org|cc)\\/scripts\\/[^/]+\\/code'
+  + '|openuserjs\\.org\\/install\\/[^/]+'
+  + '|github\\.com\\/[^/]+\\/[^/]+\\/(?:raw\\/[^/]+|releases\\/(?:download\\/[^/]+|latest\\/download))'
+  + '|raw\\.githubusercontent\\.com(?:\\/[^/]+){3}'
+  + '|gist\\.github\\.com\\/.*'
+  + ')\\/[^/]*?\\.user\\.js(?:[?#].*)?$';
 
 addPublicCommands({
   async CheckInstallerTab(tabId, src) {
@@ -176,9 +186,32 @@ const userJsFilter = {
   ],
   types: ['main_frame'],
 };
+async function updateInstallDnrRules() {
+  if (!CAN_USE_DNR_INSTALL_INTERCEPT) return;
+  try {
+    await browser.declarativeNetRequest.updateSessionRules({
+      removeRuleIds: [DNR_INSTALL_RULE_ID],
+      addRules: [{
+        id: DNR_INSTALL_RULE_ID,
+        priority: 1,
+        action: { type: 'block' },
+        condition: {
+          regexFilter: DNR_INSTALL_REGEX_FILTER,
+          resourceTypes: ['main_frame'],
+        },
+      }],
+    });
+  } catch (e) {
+    if (process.env.DEBUG) {
+      console.warn('MV3 DNR install interception setup failed.', e);
+    }
+  }
+}
 if (CAN_BLOCK_INSTALL_INTERCEPT) {
   browser.webRequest.onBeforeRequest.addListener(onUserJsRequest, userJsFilter, ['blocking']);
 } else {
+  // MV3 path: apply DNR blocking on trusted installer sources, then use tab update flow.
+  updateInstallDnrRules();
   const onTabUpdated = (tabId, { url }) => {
     if (!url || !USERJS_URL_RE.test(url)) return;
     onUserJsRequest({ method: 'GET', tabId, url });

@@ -3,6 +3,7 @@
 Last updated: 2026-02-25
 
 This tracker records review-blocking MV3 architecture requirements that must be implemented before final acceptance.
+Primary implementation guidance: `deep-research-report.md`.
 
 ## Live Regression Status (Zulenka/ProjectSaturn)
 
@@ -17,6 +18,22 @@ This tracker records review-blocking MV3 architecture requirements that must be 
 | --- | --- | --- | --- | --- |
 | CR-MV3-01 | Use `chrome.declarativeNetRequest` instead of blocking `webRequest`; use `chrome.offscreen` for WebDAV and `GM_xmlhttpRequest` support paths. | MV3 currently gates/degrades blocking `webRequest` behavior and does not implement `offscreen` flow for these paths. | Replace blocking/interception-dependent logic with DNR rule orchestration and add offscreen-backed execution where background DOM/network flow is required. | Open |
 | CR-MV3-02 | Use `chrome.userScripts.register` instead of `executeScript`. | Injection path currently relies on `tabs.executeScript` / `scripting.executeScript` compatibility wrapper. | Re-architect script registration/injection pipeline around `chrome.userScripts.register` with parity for frame/run-at/update lifecycle behavior. | Open |
+
+## Execution Phases (From Research Report)
+
+| Phase | Scope | Related Findings | Status |
+| --- | --- | --- | --- |
+| P1 | Replace blocking/interception-dependent request logic with DNR ruleset orchestration (`static` + `dynamic/session` where needed), including rule lifecycle and priority strategy. | CR-MV3-01 | In progress |
+| P2 | Introduce offscreen-backed worker flow for DOM/network-adjacent tasks required by WebDAV + `GM_xmlhttpRequest` support paths; enforce runtime message boundaries. | CR-MV3-01 | Open |
+| P3 | Replace imperative tab/script injection wrapper path with `chrome.userScripts.register` architecture, including update/unregister lifecycle and run-at/frame parity verification. | CR-MV3-02 | Open |
+| P4 | Hardening pass: permissions/CSP/WAR minimization, service-worker lifecycle resilience tests, and cold-start validation with DevTools closed. | CR-MV3-01, CR-MV3-02 | Open |
+
+## Progress Log
+
+- 2026-02-25:
+  - Added MV3 DNR session-rule interception for trusted `.user.js` install sources in `tab-redirector` (MV3 path), while preserving existing MV2 blocking gate and MV3 tab-update fallback flow.
+  - Added MV3 `declarativeNetRequest` permission in manifest transformation for Chromium MV3 builds.
+  - Added/updated regression tests for DNR setup and MV3 artifact/manifest expectations.
 
 ## Evidence Pointers
 
