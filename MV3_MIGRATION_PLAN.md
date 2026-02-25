@@ -136,6 +136,9 @@ Exit criteria:
 
 ## M10: Release and Rollout (Week 8)
 
+Operational checklist:
+- `MV3_ROLLOUT_CHECKLIST.md`
+
 - [ ] Add MV3 release assets and store upload paths.
 - [ ] Run staged rollout: canary -> beta -> stable.
 - [ ] Monitor issue intake and tag regressions with `mv3`.
