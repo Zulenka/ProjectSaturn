@@ -127,7 +127,7 @@
 
 <script setup>
 import { computed, nextTick, onActivated, onDeactivated, ref, watch } from 'vue';
-import { dumpScriptValue, formatByteLength, getBgPage, isEmpty, sendCmdDirectly } from '@/common';
+import { dumpScriptValue, formatByteLength, isEmpty, sendCmdDirectly } from '@/common';
 import { handleTabNavigation, keyboardService } from '@/common/keyboard';
 import { deepCopy, deepEqual, forEachEntry, mapEntry } from '@/common/object';
 import options from '@/common/options';
@@ -203,7 +203,6 @@ let storageSentry;
 onActivated(() => {
   const root = $el.value;
   const { id } = props.script.props;
-  const bg = getBgPage();
   root::addEventListener('focusin', onFocus);
   (current.value ? cm : focusedElement)?.focus();
   sendCmdDirectly('GetValueStore', id, undefined, sender = fakeSender()).then(data => {
@@ -231,11 +230,10 @@ onActivated(() => {
   storageSentry = chrome.runtime.connect({
     name: WATCH_STORAGE + JSON.stringify({
       cfg: { value: id },
-      id: bg?.[WATCH_STORAGE](onStorageChanged),
       tabId: sender.tab.id,
     }),
   });
-  if (!bg) storageSentry.onMessage.addListener(onStorageChanged);
+  storageSentry.onMessage.addListener(onStorageChanged);
   isActive.value = true;
 });
 
