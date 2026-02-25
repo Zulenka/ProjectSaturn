@@ -10,7 +10,7 @@ Primary implementation guidance: `deep-research-report.md`.
 | Issue | Title | Status | Notes |
 | --- | --- | --- | --- |
 | #12 | MV3 install regression: Illegal invocation on StorageArea + imageData error during install | Closed | User validated install succeeds in Chrome (2026-02-25). |
-| #13 | MV3/Opera regression: userscripts blocked with noninjectable warning on expected scriptable page | Open | Still under investigation/retest on Opera (`torn.com` forum URL). |
+| #13 | MV3/Opera regression: userscripts blocked with noninjectable warning on expected scriptable page | Open | Mitigations shipped (`6a3a5c30`, `fc20c612`); pending Opera retest on `torn.com` forum URL. |
 | #15 | MV3 CSP EvalError on blocked injection fallback | Open | Root cause tracked; CSP-safe `userScripts.execute` path shipped in `81c97512`. |
 
 ## Priority Findings

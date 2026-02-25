@@ -22,6 +22,7 @@ Use this checklist for manual validation before broad MV3 rollout.
 Expected:
 - No `Illegal invocation` errors related to `StorageArea`.
 - No userscript execution loss on first load or reload.
+- No `EvalError`/`unsafe-eval` CSP violations from extension injection paths.
 
 ## `.user.js` Install Intercept
 
@@ -67,6 +68,7 @@ Expected:
 
 - `Violentmonkey cannot run userscripts in this page ...`
 - Any uncaught promise/type errors in extension context
+- Any `EvalError` mentioning CSP `unsafe-eval` in extension context
 - Any offscreen messaging/request failures
 
 If any failure occurs, log:
