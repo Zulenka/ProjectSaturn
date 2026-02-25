@@ -28,7 +28,7 @@ Ship a Chromium MV3 build that preserves core Violentmonkey behavior for install
 | ID | Workstream | Priority | Status | Owner | Target |
 | --- | --- | --- | --- | --- | --- |
 | MV3-01 | Scope, architecture, and policy lock | P0 | Not started | TBD | Week 1 |
-| MV3-02 | Manifest/build split and artifact generation | P0 | In progress | TBD | Week 1 |
+| MV3-02 | Manifest/build split and artifact generation | P0 | Completed | TBD | Week 1 |
 | MV3-03 | Messaging/RPC decoupling from background page | P0 | In progress | TBD | Week 2 |
 | MV3-04 | Service-worker-safe background runtime | P0 | In progress | TBD | Week 2 |
 | MV3-05 | Injection engine MV3 port | P0 | In progress | TBD | Weeks 3-4 |
@@ -57,11 +57,11 @@ Exit criteria:
 
 ## M2: Build/Manifest Split (Week 1)
 
-- [ ] Add MV3 manifest template/overlay for Chromium targets.
-- [ ] Keep existing Firefox MV2 path untouched.
-- [ ] Update manifest build helper to emit `action`, `background.service_worker`, and MV3 permissions model.
-- [ ] Update packaging scripts to generate MV3 artifacts.
-- [ ] Ensure CI uploads both tracks for review builds.
+- [x] Add MV3 manifest template/overlay for Chromium targets.
+- [x] Keep existing Firefox MV2 path untouched.
+- [x] Update manifest build helper to emit `action`, `background.service_worker`, and MV3 permissions model.
+- [x] Update packaging scripts to generate MV3 artifacts.
+- [x] Ensure CI uploads both tracks for review builds.
 
 Exit criteria:
 - CI produces installable `chromium-mv3` and `firefox-mv2` artifacts for each commit.
@@ -139,7 +139,7 @@ Exit criteria:
 Operational checklist:
 - `MV3_ROLLOUT_CHECKLIST.md`
 
-- [ ] Add MV3 release assets and store upload paths.
+- [x] Add MV3 release assets and store upload paths.
 - [ ] Run staged rollout: canary -> beta -> stable.
 - [ ] Monitor issue intake and tag regressions with `mv3`.
 - [ ] Publish migration notes and known limitations.
