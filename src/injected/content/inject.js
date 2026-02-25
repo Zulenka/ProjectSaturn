@@ -65,6 +65,10 @@ export function injectPageSandbox(data) {
   }
   if (useOpener(opener) || useOpener(window !== top && parent)) {
     startHandshake();
+  } else if (window === top) {
+    // In top-level pages there is no parent-frame vault handoff to protect,
+    // so avoid the iframe fallback path that triggers sandbox warnings.
+    startHandshake();
   } else {
     /* Sites can do window.open(sameOriginUrl,'iframeNameOrNewWindowName').opener=null, spoof JS
      * environment and easily hack into our communication channel before our content scripts run.
