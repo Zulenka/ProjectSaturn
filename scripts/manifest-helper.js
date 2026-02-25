@@ -12,6 +12,54 @@ function getTargetBrowser() {
   return (process.env.TARGET_BROWSER || '').toLowerCase() || null;
 }
 
+function getTargetManifest() {
+  return (process.env.TARGET_MANIFEST || 'mv2').toLowerCase();
+}
+
+function applyManifestTarget(data) {
+  const targetManifest = getTargetManifest();
+  if (targetManifest === 'mv2') return;
+  if (targetManifest !== 'mv3') {
+    throw new Error(`Unsupported TARGET_MANIFEST: ${targetManifest}`);
+  }
+  const targetBrowser = getTargetBrowser();
+  if (!['chrome', 'opera'].includes(targetBrowser)) {
+    throw new Error(`TARGET_MANIFEST=mv3 requires TARGET_BROWSER=chrome|opera (got ${targetBrowser || 'unset'})`);
+  }
+  data.manifest_version = 3;
+  if (data.browser_action) {
+    data.action = {
+      ...data.browser_action,
+    };
+    delete data.action.browser_style;
+    delete data.browser_action;
+  }
+  if (data.commands?._execute_browser_action != null) {
+    data.commands = {
+      ...data.commands,
+      _execute_action: data.commands._execute_browser_action,
+    };
+    delete data.commands._execute_browser_action;
+  }
+  data.background ||= {};
+  delete data.background.scripts;
+  data.background.service_worker ||= 'background/index.js';
+  const permissions = [];
+  const hostPermissions = new Set(data.host_permissions || []);
+  (data.permissions || []).forEach((perm) => {
+    if (perm === 'webRequestBlocking') return;
+    if (perm === '<all_urls>' || /^\w+:\/\//.test(perm)) {
+      hostPermissions.add(perm);
+      return;
+    }
+    permissions.push(perm);
+  });
+  data.permissions = permissions;
+  if (hostPermissions.size) data.host_permissions = [...hostPermissions];
+  else delete data.host_permissions;
+  data.minimum_chrome_version = '88.0';
+}
+
 function mergeManifest(template, base) {
   if (!base) return { ...template };
   const data = {
@@ -69,6 +117,7 @@ async function buildManifest(base) {
   const data = mergeManifest(template, base);
   data.version = getVersion();
   applyBrowserTarget(data);
+  applyManifestTarget(data);
   if (process.env.TARGET === 'selfHosted') {
     data.browser_specific_settings ||= {};
     data.browser_specific_settings.gecko ||= {};
@@ -78,7 +127,8 @@ async function buildManifest(base) {
     // Do not support i18n in beta version
     const name = 'Violentmonkey BETA';
     data.name = name;
-    data.browser_action.default_title = name;
+    if (data.browser_action) data.browser_action.default_title = name;
+    if (data.action) data.action.default_title = name;
   }
   return data;
 }
@@ -113,8 +163,18 @@ class ListBackgroundScriptsPlugin {
       const bgId = 'background/index';
       const bgEntry = compilation.entrypoints.get(bgId);
       const scripts = bgEntry.chunks.flatMap(c => [...c.files]);
-      if (`${manifest.background.scripts}` !== `${scripts}`) {
-        manifest.background.scripts = scripts;
+      const bgScript = scripts.find(file => file.endsWith('.js')) || scripts[0];
+      const isMv3 = manifest.manifest_version === 3;
+      const changed = isMv3
+        ? manifest.background.service_worker !== bgScript || manifest.background.scripts
+        : `${manifest.background.scripts}` !== `${scripts}`;
+      if (changed) {
+        if (isMv3) {
+          manifest.background.service_worker = bgScript;
+          delete manifest.background.scripts;
+        } else {
+          manifest.background.scripts = scripts;
+        }
         await fs.writeFile(path,
           JSON.stringify(manifest, null, this.minify ? 0 : 2),
           { encoding: 'utf8' });

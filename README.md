@@ -47,14 +47,20 @@ $ yarn build:chrome
 $ yarn build:firefox
 $ yarn build:opera
 
+# Build MV3 packages for Chromium targets (migration track)
+$ yarn build:chrome-mv3
+$ yarn build:opera-mv3
+
 # Build all browser targets
 $ yarn build:all
+$ yarn build:all:mv3
 
 # Build for self-hosted release that has an update_url
 $ yarn build:selfHosted
 ```
 
 Browser-target builds are copied to `dist-builds/chrome`, `dist-builds/firefox`, and `dist-builds/opera`.
+MV3 builds are copied to `dist-builds/chrome-mv3` and `dist-builds/opera-mv3`.
 
 ### Release
 
