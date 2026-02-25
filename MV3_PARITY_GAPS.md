@@ -34,6 +34,14 @@ Use it as the source-of-truth companion for MV3 rollout and release notes.
 - Direct background-page command path is disabled in MV3.
   - Current behavior: command routing uses runtime messaging fallback.
 
+## Injection Runtime
+
+- MV3 top-frame injection is migrating to `chrome.userScripts.register`.
+  - Current behavior: top-frame content/probe paths use `tryUserScripts` and fall back to execute-style APIs when unavailable.
+  - Current behavior: one-shot registrations are unregistered via bounded cleanup timer.
+- Subframe and legacy-path parity is still partially execute-style.
+  - Current behavior: frame-scoped injection fallback remains active where `userScripts` parity is not fully implemented.
+
 ## Release/Build Contract
 
 - Firefox release track remains MV2.
@@ -44,3 +52,4 @@ Use it as the source-of-truth companion for MV3 rollout and release notes.
 
 - Staged store rollout monitoring (canary -> beta -> stable) with `mv3` regression triage.
 - Strict-CSP and iframe-heavy site matrix validation against production-like browsing sessions.
+- Cross-browser validation of `userScripts` path behavior on Chrome/Opera channels (install + runtime injection parity).

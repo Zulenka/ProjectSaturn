@@ -65,16 +65,32 @@ This document records currently implemented decisions for Chromium MV3 migration
 ## ADR-06: Offscreen document usage
 
 - Decision:
-  - Do not introduce an MV3 offscreen document in the current migration scope.
+  - Introduce an MV3 offscreen document for background tasks that require DOM-adjacent/runtime-window execution semantics.
 - Rationale:
-  - Current MV3 background-path requirements are covered by service-worker-safe fallbacks.
-  - Clipboard and icon paths already avoid mandatory background DOM coupling.
+  - WebDAV directory XML parsing and `GM_xmlhttpRequest` fallback behavior require a resilient MV3 service-worker compatible execution path.
+  - Offscreen runtime isolates this work from service-worker lifecycle limits while preserving message-driven boundaries.
 - Implementation:
-  - No `offscreen` permission is required for the current MV3 release contract.
-  - If a future feature requires background DOM APIs, add an explicit offscreen ADR and tests.
+  - MV3 manifest transform now includes `offscreen` permission.
+  - Added offscreen bridge (`src/background/utils/offscreen.js`) and offscreen runtime handlers (`src/offscreen/index.js`).
+  - WebDAV parsing path routes through offscreen in MV3 (`src/background/sync/webdav.js`).
+  - `GM_xmlhttpRequest` fallback routes via offscreen fetch/abort handling when `XMLHttpRequest` is unavailable (`src/background/utils/requests.js`).
+
+## ADR-07: MV3 user script injection path
+
+- Decision:
+  - Start migrating top-frame MV3 code injection to `chrome.userScripts.register` while preserving compatibility fallback to execute-style APIs.
+- Rationale:
+  - `userScripts` is the intended MV3 injection architecture for userscript-style execution semantics.
+  - Incremental migration reduces release risk while preserving current behavior in runtimes lacking full `userScripts` support.
+- Implementation:
+  - MV3 manifest transform now includes `userScripts` permission.
+  - Added `registerUserScriptOnce` helper in `src/background/utils/tabs.js` with timed unregister cleanup.
+  - `executeScriptInTab` accepts `tryUserScripts` opt-in and falls back to legacy injection APIs on failure.
+  - Injection/probe call sites opted into `tryUserScripts` for MV3 top-frame paths (`preinject`, `popup-tracker`, `tab-redirector`).
 
 ## Open decisions still requiring maintainer signoff
 
 - Final first-release parity contract for GM request header/cookie edge cases.
+- Full lifecycle strategy for replacing remaining execute-style injection fallbacks with durable `userScripts` registration parity.
 - Definitive runbook for service-worker restart smoke testing and rollback thresholds.
 - Public release-note scope for known MV3 limitations.

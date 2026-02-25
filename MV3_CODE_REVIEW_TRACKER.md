@@ -43,6 +43,7 @@ Primary implementation guidance: `deep-research-report.md`.
   - Wired content-realm preinject path to opt into `userScripts` on MV3 top frame while retaining `executeScript` fallback for parity.
   - Added regression coverage for `registerUserScriptOnce` success/fallback and `executeScriptInTab` `tryUserScripts` behavior (`test/background/tabs.test.js`).
   - Opted additional top-frame probe/informational injection paths into `tryUserScripts` in MV3 (`popup-tracker`, `tab-redirector`) while preserving legacy fallback.
+  - Verified local MV3 build and contract checks pass (`build:all:mv3`, `smoke:mv3:test`, `check:mv3:*`); rollout gate GH issue query step is environment-network dependent.
 
 ## Evidence Pointers
 
