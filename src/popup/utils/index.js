@@ -7,6 +7,7 @@ export const emptyStore = () => ({
   commands: {},
   alerts: [],
   alertsUnread: 0,
+  alertsTotal: 0,
   latestAlert: null,
   domain: '',
   injectionFailure: null,

@@ -145,14 +145,15 @@ async function initialize() {
 
 async function refreshAlerts() {
   const data = await sendCmdDirectly('AlertsGet', {
-    unreadOnly: true,
-    severity: 'warn',
-    limit: 10,
+    unreadOnly: false,
+    severity: 'info',
+    limit: 40,
   }).catch(() => null);
   if (!data) return;
   store.alerts = data.items || [];
   store.alertsUnread = data.unreadCount || 0;
-  store.latestAlert = store.alerts[0] || null;
+  store.alertsTotal = data.totalCount || store.alerts.length;
+  store.latestAlert = store.alerts.find(item => !item.read) || store.alerts[0] || null;
 }
 
 function isMyTab(tab) {

@@ -316,6 +316,106 @@ footer {
   background: rgba(217, 48, 37, .15);
   border-top: 1px solid rgba(217, 48, 37, .35);
   border-bottom: 1px solid rgba(217, 48, 37, .35);
+  .vm-alerts-header {
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .5rem;
+  }
+  .vm-alerts-count {
+    font-size: .8rem;
+    opacity: .8;
+    white-space: nowrap;
+  }
+  .vm-alerts-toolbar {
+    gap: .5rem;
+    margin-top: .25rem;
+    font-size: .85em;
+    a.active {
+      font-weight: 600;
+      text-decoration: underline;
+    }
+  }
+  .vm-alerts-preview {
+    display: flex;
+    gap: .5rem;
+    justify-content: space-between;
+    margin-top: .4rem;
+    align-items: center;
+    padding: .25rem .4rem;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, .08);
+  }
+  .vm-alerts-toggle {
+    white-space: nowrap;
+    font-size: .8em;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  .vm-alerts-list {
+    margin-top: .35rem;
+    max-height: 13rem;
+    overflow: auto;
+    border: 1px solid rgba(217, 48, 37, .3);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, .06);
+  }
+  .vm-alert-empty {
+    padding: .6rem;
+    font-style: italic;
+    opacity: .85;
+  }
+  .vm-alert-entry {
+    padding: .5rem .6rem;
+    border-bottom: 1px solid rgba(217, 48, 37, .15);
+    &.read {
+      opacity: .7;
+    }
+    &.severity-error,
+    &.severity-critical {
+      border-left: 2px solid rgba(217, 48, 37, .8);
+      padding-left: .5rem;
+    }
+    &.severity-warn {
+      border-left: 2px solid rgba(245, 158, 11, .8);
+      padding-left: .5rem;
+    }
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+  .vm-alert-entry-head {
+    display: flex;
+    gap: .5rem;
+    align-items: baseline;
+    justify-content: space-between;
+    code {
+      max-width: 13rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: .75rem;
+      opacity: .9;
+    }
+  }
+  .vm-alert-time {
+    white-space: nowrap;
+    font-size: .72rem;
+    opacity: .8;
+  }
+  .vm-alert-message {
+    margin-top: .2rem;
+    line-height: 1.25;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .vm-alert-meta {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-top: .2rem;
+    font-size: .75rem;
+    opacity: .85;
+  }
 }
 
 .page-popup:not(.noninjectable):not(.blacklisted) {

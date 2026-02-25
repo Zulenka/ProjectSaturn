@@ -60,12 +60,52 @@
       <span v-text="store.failureText"/>
       <code v-text="store.blacklisted" v-if="store.blacklisted" class="ellipsis inline-block"/>
     </div>
-    <div class="failure-reason vm-alerts" v-if="store.alertsUnread">
-      <div class="flex">
-        <strong>Extension alerts ({{store.alertsUnread}})</strong>
-        <a class="ml-1" href="#" :tabIndex @click.prevent="onMarkAlertsRead">Mark read</a>
+    <div class="failure-reason vm-alerts" v-if="store.alertsUnread || store.alertsTotal">
+      <div class="flex vm-alerts-header">
+        <strong>Extension alerts</strong>
+        <span class="vm-alerts-count">
+          {{store.alertsUnread}} unread / {{store.alertsTotal}} total
+        </span>
       </div>
-      <div class="ellipsis" v-text="store.latestAlert?.message"/>
+      <div class="flex vm-alerts-toolbar">
+        <a href="#" :tabIndex
+           :class="{ active: alertsView === 'unread' }"
+           @click.prevent="onSetAlertsView('unread')">Unread</a>
+        <a href="#" :tabIndex
+           :class="{ active: alertsView === 'all' }"
+           @click.prevent="onSetAlertsView('all')">All</a>
+        <a href="#" :tabIndex @click.prevent="onRefreshAlerts">
+          {{alertsLoading ? 'Refreshing...' : 'Refresh'}}
+        </a>
+        <a href="#" :tabIndex @click.prevent="onMarkAlertsRead">Mark all read</a>
+        <a href="#" :tabIndex @click.prevent="onClearReadAlerts">Clear read</a>
+      </div>
+      <div class="vm-alerts-preview menu-area ellipsis"
+           :tabIndex
+           @click.stop="alertsExpanded = !alertsExpanded"
+           @keydown.enter.exact.stop.prevent="alertsExpanded = !alertsExpanded"
+           @keydown.space.exact.stop.prevent="alertsExpanded = !alertsExpanded">
+        <span v-text="alertsPreview?.message || emptyAlertsText"/>
+        <span class="vm-alerts-toggle">{{alertsExpanded ? 'Hide' : 'Show'}}</span>
+      </div>
+      <div class="vm-alerts-list" v-if="alertsExpanded">
+        <div class="vm-alert-empty" v-if="!visibleAlerts.length" v-text="emptyAlertsText"/>
+        <div v-for="alert in visibleAlerts"
+             :key="alert.id"
+             class="vm-alert-entry"
+             :class="[`severity-${alert.severity}`, { read: alert.read }]">
+          <div class="vm-alert-entry-head">
+            <code v-text="alert.code" />
+            <span class="vm-alert-time" v-text="formatAlertTime(alert.updatedAt || alert.createdAt)"/>
+          </div>
+          <div class="vm-alert-message" v-text="alert.message"/>
+          <div class="vm-alert-meta">
+            <span v-text="alert.severity.toUpperCase()" />
+            <span v-if="alert.count > 1">x{{alert.count}}</span>
+            <a href="#" :tabIndex v-if="!alert.read" @click.prevent="onMarkAlertRead(alert.id)">Mark read</a>
+          </div>
+        </div>
+      </div>
     </div>
     <div v-if="showSettings" class="mb-1c menu settings">
       <settings-popup/>
@@ -266,12 +306,30 @@ const focusedItem = ref();
 const message = ref();
 const note = ref();
 const topExtras = ref();
+const alertsExpanded = ref(false);
+const alertsLoading = ref(false);
+const alertsView = ref('unread');
 
 const activeLinks = computed(makeActiveLinks);
 const injectionScopes = computed(makeInjectionScopes);
 const findUrls = computed(makeFindUrls);
 const reloadHint = computed(makeReloadHint);
 const tabIndex = computed(() => extras.value ? -1 : 0);
+const visibleAlerts = computed(() => (
+  alertsView.value === 'all'
+    ? store.alerts
+    : (store.alerts || []).filter(item => !item.read)
+));
+const alertsPreview = computed(() => (
+  visibleAlerts.value[0]
+  || (alertsView.value === 'all' ? store.latestAlert : null)
+  || null
+));
+const emptyAlertsText = computed(() => (
+  alertsView.value === 'all'
+    ? 'No extension alerts yet.'
+    : 'No unread extension alerts.'
+));
 
 options.hook((changes) => {
   for (const key in optionsData) {
@@ -483,9 +541,45 @@ async function onInjectionFailureFix() {
 }
 async function onMarkAlertsRead() {
   await sendCmdDirectly('AlertsMarkRead', { all: true });
-  store.alerts = [];
-  store.alertsUnread = 0;
-  store.latestAlert = null;
+  await onRefreshAlerts();
+}
+async function onMarkAlertRead(id) {
+  await sendCmdDirectly('AlertsMarkRead', { id });
+  await onRefreshAlerts();
+}
+async function onClearReadAlerts() {
+  await sendCmdDirectly('AlertsClear', { readOnly: true });
+  await onRefreshAlerts();
+}
+function onSetAlertsView(view) {
+  alertsView.value = view;
+  alertsExpanded.value = true;
+}
+function formatAlertTime(ts) {
+  return new Date(+ts || Date.now()).toLocaleString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    month: '2-digit',
+    day: '2-digit',
+  });
+}
+async function onRefreshAlerts() {
+  alertsLoading.value = true;
+  try {
+    const data = await sendCmdDirectly('AlertsGet', {
+      unreadOnly: false,
+      severity: 'info',
+      limit: 40,
+    });
+    if (!data) return;
+    store.alerts = data.items || [];
+    store.alertsUnread = data.unreadCount || 0;
+    store.alertsTotal = data.totalCount || store.alerts.length;
+    store.latestAlert = store.alerts.find(item => !item.read) || store.alerts[0] || null;
+  } finally {
+    alertsLoading.value = false;
+  }
 }
 function onRemoveScript() {
   const { config, props: { id } } = extras.value.data;
@@ -581,6 +675,7 @@ function showButtons(item) {
 }
 
 onMounted(() => {
+  onRefreshAlerts();
   keyboardService.enable();
   keyboardService.register('escape', () => {
     const item = extras.value || topExtras.value;
