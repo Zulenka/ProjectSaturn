@@ -11,7 +11,7 @@ global.browser = {
     },
   },
   extension: {
-    isAllowedFileSchemeAccess: () => false,
+    isAllowedFileSchemeAccess: cb => cb(false),
   },
   runtime: {
     getURL: path => path,
@@ -25,6 +25,9 @@ global.browser = {
     onRemoved: { addListener: () => {} },
     onReplaced: { addListener: () => {} },
     onUpdated: { addListener: () => {} },
+  },
+  cookies: {
+    getAllCookieStores: async () => [{ id: 'firefox-default', tabIds: [] }],
   },
   windows: {
     getAll: () => [{}],

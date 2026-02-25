@@ -245,15 +245,31 @@ export async function executeScriptInTab(tabId, options) {
     };
     injectDetails.args = [options.code || ''];
   }
-  const result = promiseApi
-    ? await promiseApi(injectDetails)
-    : await new Promise((resolve, reject) => {
-      callbackApi(injectDetails, (res) => {
-        const err = chrome.runtime.lastError;
-        if (err) reject(new Error(err.message));
-        else resolve(res || []);
-      });
+  const execViaCallback = () => new Promise((resolve, reject) => {
+    callbackApi(injectDetails, (res) => {
+      const err = chrome.runtime.lastError;
+      if (err) reject(new Error(err.message));
+      else resolve(res || []);
     });
+  });
+  let result;
+  if (promiseApi) {
+    try {
+      const maybeResult = promiseApi(injectDetails);
+      if (maybeResult?.then) {
+        result = await maybeResult;
+      } else if (callbackApi) {
+        result = await execViaCallback();
+      } else {
+        result = maybeResult || [];
+      }
+    } catch (err) {
+      if (!callbackApi) throw err;
+      result = await execViaCallback();
+    }
+  } else {
+    result = await execViaCallback();
+  }
   return result.map(item => item.result);
 }
 
