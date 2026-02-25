@@ -100,7 +100,7 @@ Exit criteria:
 
 - [ ] Replace blocking request mutation approach with MV3-compatible strategy.
 - [ ] Define and document unavoidable parity differences.
-- [ ] Port request header/cookie handling with explicit tests.
+- [x] Port request header/cookie handling with explicit tests.
 - [ ] Validate GM request flows against real-world scripts.
 
 Exit criteria:
