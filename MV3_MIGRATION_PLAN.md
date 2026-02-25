@@ -31,7 +31,7 @@ Ship a Chromium MV3 build that preserves core Violentmonkey behavior for install
 | MV3-02 | Manifest/build split and artifact generation | P0 | Completed | TBD | Week 1 |
 | MV3-03 | Messaging/RPC decoupling from background page | P0 | Completed | TBD | Week 2 |
 | MV3-04 | Service-worker-safe background runtime | P0 | Completed | TBD | Week 2 |
-| MV3-05 | Injection engine MV3 port | P0 | In progress | TBD | Weeks 3-4 |
+| MV3-05 | Injection engine MV3 port | P0 | Completed | TBD | Weeks 3-4 |
 | MV3-06 | GM request/network interception redesign | P0 | Completed | TBD | Weeks 4-5 |
 | MV3-07 | `.user.js` install and redirect flow replacement | P0 | Completed | TBD | Week 5 |
 | MV3-08 | Sync OAuth callback interception replacement | P1 | Completed | TBD | Week 6 |
@@ -92,7 +92,7 @@ Exit criteria:
 - [x] Replace MV2 `tabs.executeScript` usage in background injection paths.
 - [x] Rework preinject timing logic that currently depends on MV2 request hooks.
 - [x] Preserve `run_at`, frame handling, realm decisions, and cache behavior.
-- [ ] Validate with strict CSP sites and multi-frame pages.
+- [x] Validate with strict CSP sites and multi-frame pages.
 
 Exit criteria:
 - Injection reliability meets pre-migration baseline on target Chromium versions.

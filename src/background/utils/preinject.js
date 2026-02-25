@@ -15,6 +15,7 @@ import { addOwnCommands, addPublicCommands } from './init';
 import { clearNotifications } from './notifications';
 import { hookOptionsInit } from './options';
 import { popupTabs } from './popup-tracker';
+import { analyzeCspForInject } from './preinject-csp';
 import { clearRequestsByTabId, reifyRequests } from './requests';
 import { kSetCookie } from './requests-core';
 import { updateVisitedTime } from './script';
@@ -55,15 +56,12 @@ const API_EXTRA = [
 ].filter(Boolean);
 let warnedHeadersReceivedCompat;
 const findCspHeader = h => h.name.toLowerCase() === 'content-security-policy';
-const CSP_RE = /(?:^|[;,])\s*(?:script-src(-elem)?|(d)efault-src)(\s+[^;,]+)/g;
-const NONCE_RE = /'nonce-([-+/=\w]+)'/;
 const SKIP_COMMENTS_RE = /^\s*(?:\/\*[\s\S]*?\*\/|\/\/.*[\r\n]+|\s+)*/u;
 /** Not using a combined regex to check for the chars to avoid catastrophic backtracking */
 const isUnsafeConcat = s => (s = s.charCodeAt(s.match(SKIP_COMMENTS_RE)[0].length)) === 45/*"-"*/
   || s === 43/*"+"*/
   || s === 91/*"["*/
   || s === 40/*"("*/;
-const UNSAFE_INLINE = "'unsafe-inline'";
 /** These bags are reused in cache to reduce memory usage,
  * CACHE_KEYS is for removeStaleCacheEntry */
 const BAG_NOOP = { [INJECT]: {}, [CACHE_KEYS]: [] };
@@ -715,29 +713,20 @@ function unregisterScriptFF(bag) {
 function detectStrictCsp(info, bag) {
   const h = info[kResponseHeaders].find(findCspHeader);
   if (!h) return;
-  let tmp = '';
-  let m, scriptSrc, scriptElemSrc, defaultSrc;
-  while ((m = CSP_RE.exec(h.value))) {
-    tmp += m[2] ? (defaultSrc = m[3]) : m[1] ? (scriptElemSrc = m[3]) : (scriptSrc = m[3]);
-  }
-  if (!tmp) return;
-  tmp = tmp.match(NONCE_RE);
-  if (tmp) {
-    bag[INJECT].nonce = tmp[1];
-  } else if (
-    scriptSrc && !scriptSrc.includes(UNSAFE_INLINE) ||
-    scriptElemSrc && !scriptElemSrc.includes(UNSAFE_INLINE) ||
-    !scriptSrc && !scriptElemSrc && defaultSrc && !defaultSrc.includes(UNSAFE_INLINE)
-  ) {
+  const cspResult = analyzeCspForInject(h.value);
+  if (!cspResult) return;
+  if (cspResult.nonce) {
+    bag[INJECT].nonce = cspResult.nonce;
+  } else if (cspResult.forceContent) {
     bag[FORCE_CONTENT] = bag[INJECT][FORCE_CONTENT] = true;
   } else {
     return;
   }
-  m = unregisterScriptFF(bag);
-  if (m && !tmp) {
+  const unregistered = unregisterScriptFF(bag);
+  if (unregistered && !cspResult.nonce) {
     // Registering only without nonce, otherwise FF will incorrectly reuse it on tab reload
     return Promise.all([
-      m,
+      unregistered,
       bag[CSAPI_REG] = registerScriptDataFF(bag[INJECT], info.url),
     ]);
   }
