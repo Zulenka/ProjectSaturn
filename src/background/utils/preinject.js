@@ -105,6 +105,9 @@ const resolveDataCodeStr = `(${(global, data) => {
 const getKey = (url, isTop) => (
   isTop ? url : `-${url}`
 );
+const getBaseUrl = url => url?.split('#', 1)[0] || url;
+const getCspHintKey = (tabId, url) => `${tabId}\n${getBaseUrl(url)}`;
+const cspHints = Object.create(null);
 const normalizeRealm = val => (
   KNOWN_INJECT_INTO[val] ? val : injectInto || AUTO
 );
@@ -197,6 +200,12 @@ addPublicCommands({
     const bag = bagP[INJECT] ? bagP : await bagP[PROMISE];
     /** @type {VMInjection} */
     const inject = bag[INJECT];
+    if (IS_MV3 && isTop && tabId >= 0) {
+      const cspHint = cspHints[getCspHintKey(tabId, url)];
+      if (cspHint) {
+        applyCspResultToBag(cspHint, bag, url);
+      }
+    }
     const scripts = inject[SCRIPTS];
     if (scripts) {
       triageRealms(scripts, bag[FORCE_CONTENT] || forceContent, tabId, frameId, bag);
@@ -425,15 +434,17 @@ function onHeadersReceived(info) {
   // The INJECT data is normally already in cache if code and values aren't huge.
   // We still run CSP detection for cached env placeholders so hints can be carried
   // into prepareBag before first page-level injection attempt.
+  const cspPrepare = !skippedTabs[info.tabId]
+    && (IS_MV3 || IS_FIREFOX && info.url.startsWith('https:'))
+    && detectStrictCsp(info, bag);
   if (bag && !skippedTabs[info.tabId]) {
-    const cspPrepare = (IS_MV3 || IS_FIREFOX && info.url.startsWith('https:'))
-      && detectStrictCsp(info, bag);
     const res = !bag[FORCE_CONTENT]
       && bag[INJECT]?.[SCRIPTS]
       && xhrInject && CAN_BLOCK_WEBREQUEST
       && prepareXhrBlob(info, bag);
     return cspPrepare ? cspPrepare.then(res && (() => res)) : res;
   }
+  return cspPrepare;
 }
 
 /**
@@ -736,6 +747,14 @@ function detectStrictCsp(info, bag) {
   if (!h) return;
   const cspResult = analyzeCspForInject(h.value);
   if (!cspResult) return;
+  if (IS_MV3 && info.tabId >= 0) {
+    cspHints[getCspHintKey(info.tabId, info.url)] = cspResult;
+  }
+  if (!bag) return;
+  return applyCspResultToBag(cspResult, bag, info.url);
+}
+
+function applyCspResultToBag(cspResult, bag, url) {
   const hasInjectData = !!bag[INJECT]?.[SCRIPTS];
   const isMutableBag = bag !== BAG_NOOP && bag !== BAG_NOOP_EXPOSE;
   if (cspResult.nonce) {
@@ -759,7 +778,7 @@ function detectStrictCsp(info, bag) {
     // Registering only without nonce, otherwise FF will incorrectly reuse it on tab reload
     return Promise.all([
       unregistered,
-      bag[CSAPI_REG] = registerScriptDataFF(bag[INJECT], info.url),
+      bag[CSAPI_REG] = registerScriptDataFF(bag[INJECT], url),
     ]);
   }
 }
@@ -771,6 +790,10 @@ function isPageRealmScript(scr) {
 
 function onTabRemoved(id /* , info */) {
   clearFrameData(id, 0, true);
+  const prefix = `${id}\n`;
+  for (const key in cspHints) {
+    if (key.startsWith(prefix)) delete cspHints[key];
+  }
   delete skippedTabs[id];
 }
 
