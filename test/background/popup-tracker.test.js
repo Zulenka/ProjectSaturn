@@ -211,4 +211,55 @@ describe('popup-tracker startup', () => {
       allowLegacyCodeFallback: false,
     });
   });
+
+  test('InitPopup returns noninjectable when URL is missing and probe fails', async () => {
+    jest.resetModules();
+    process.env.DEBUG = '';
+    const activeTab = { id: 45 };
+    setupBrowserApis({ activeTab });
+    global.extensionManifest.manifest_version = 3;
+    global.chrome.userScripts = {};
+    global.browser.userScripts = global.chrome.userScripts;
+    const cacheState = {};
+    const cacheMock = {
+      pop: jest.fn(() => undefined),
+      get: jest.fn(key => cacheState[key]),
+      put: jest.fn((key, value) => ((cacheState[key] = value), value)),
+    };
+    const badges = {};
+    const getFailureReason = jest.fn((url) => (
+      url ? ['', IS_APPLIED] : ['failureReasonNoninjectable', IS_APPLIED]
+    ));
+    const getScriptsByURL = jest.fn(() => ({}));
+    const getData = jest.fn(async () => ({ [SCRIPTS]: [], menus: {} }));
+    const executeScriptInTab = jest.fn(async () => []);
+    jest.doMock('@/background/utils/cache', () => ({
+      __esModule: true,
+      default: cacheMock,
+    }));
+    jest.doMock('@/background/utils/icon', () => ({
+      badges,
+      getFailureReason,
+    }));
+    jest.doMock('@/background/utils/db', () => ({
+      getData,
+      getScriptsByURL,
+    }));
+    jest.doMock('@/background/utils/tabs', () => ({
+      executeScriptInTab,
+    }));
+    const { commands } = require('@/background/utils/init');
+    commands.GetTabDomain = jest.fn(() => ({ host: '', domain: '' }));
+    require('@/background/utils/popup-tracker');
+    const [, data, failure] = await commands.InitPopup();
+    expect(data.tab).toEqual(activeTab);
+    expect(failure[0]).toBe('failureReasonNoninjectable');
+    expect(executeScriptInTab).toHaveBeenCalledWith(45, {
+      code: '1',
+      [RUN_AT]: 'document_start',
+      tryUserScripts: global.extensionManifest.manifest_version === 3,
+      allowRegisterFallback: false,
+      allowLegacyCodeFallback: false,
+    });
+  });
 });
