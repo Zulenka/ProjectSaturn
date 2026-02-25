@@ -32,6 +32,12 @@ Latest local verification (2026-02-25):
 - [ ] Beta rollout monitored for install, injection, and GM request regressions.
 - [ ] Stable rollout only after no open P0/P1 MV3 regressions.
 
+Current regression baseline (2026-02-25):
+
+- Open `mv3`+`regression` P0: `0`
+- Open `mv3`+`regression` P1: `0`
+- Command: `yarn report:mv3:triage`
+
 ## Runtime smoke checks (release candidate)
 
 - [x] Popup opens and refreshes state after service worker restart.
