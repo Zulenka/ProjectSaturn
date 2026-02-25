@@ -37,6 +37,7 @@ Primary implementation guidance: `deep-research-report.md`.
   - Added MV3 offscreen bridge foundation (`src/background/utils/offscreen.js` + `src/offscreen/index.js`) and wired WebDAV XML parsing to offscreen in MV3 path.
   - Added MV3 `offscreen` permission in manifest transformation and updated artifact checks.
   - Added initial MV3 offscreen HTTP fallback path for `GM_xmlhttpRequest` when `XMLHttpRequest` is unavailable in service worker context.
+  - Added regression coverage for offscreen fallback (`test/background/requests-offscreen.test.js`) and parser behavior (`test/common/webdav-xml.test.js`).
 
 ## Evidence Pointers
 
