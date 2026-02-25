@@ -695,6 +695,8 @@ export function setConfig(config) {
 }
 
 let unregister;
+const IS_MV3 = extensionManifest.manifest_version === 3;
+const CAN_BLOCK_AUTH_REDIRECT = !IS_MV3;
 
 export async function openAuthPage(url, redirectUri) {
   unregister?.(); // otherwise our new tabId will be ignored
@@ -703,33 +705,42 @@ export async function openAuthPage(url, redirectUri) {
    * @param {chrome.webRequest.WebResponseDetails} info
    * @returns {chrome.webRequest.BlockingResponse}
    */
-  const handler = (info) => {
-    if (getService().checkAuth?.(info.url)) {
-      // When onBeforeRequest occurs for initial requests intercepted by service worker,
-      // info.tabId will be -1 on Chromium based browsers, use tabId instead.
-      // tested on Chrome / Edge / Brave
+  const handler = (infoOrTabId, changeInfo, tab) => {
+    const urlToCheck = changeInfo?.url || tab?.url || infoOrTabId?.url || '';
+    const updatedTabId = typeof infoOrTabId === 'number' ? infoOrTabId : infoOrTabId?.tabId;
+    if (updatedTabId !== tabId && updatedTabId !== -1) return;
+    if (getService().checkAuth?.(urlToCheck)) {
+      // In MV2 we cancel, in MV3 fallback we close tab on redirect detection.
       browser.tabs.remove(tabId);
-      // If we unregister without setTimeout, API will ignore { cancel: true }
+      // If we unregister without setTimeout, API may ignore cancellation in MV2.
       setTimeout(unregister, 0);
-      return { cancel: true };
+      return CAN_BLOCK_AUTH_REDIRECT && { cancel: true };
     }
   };
-  unregister = () => {
-    browser.webRequest.onBeforeRequest.removeListener(handler);
-  };
+  unregister = CAN_BLOCK_AUTH_REDIRECT
+    ? () => {
+      browser.webRequest.onBeforeRequest.removeListener(handler);
+    }
+    : () => {
+      browser.tabs.onUpdated.removeListener(handler);
+    };
   // Note: match pattern does not support port number
   // - In Chrome, the port number is ignored and the pattern still works
   // - In Firefox, the pattern is ignored and won't match any URL
   redirectUri = redirectUri.replace(/:\d+/, '');
-  browser.webRequest.onBeforeRequest.addListener(
-    handler,
-    {
-      // Do not filter by tabId here, see above
-      urls: [`${redirectUri}*`],
-      types: ['main_frame', 'xmlhttprequest'], // fetch request in service worker
-    },
-    ['blocking'],
-  );
+  if (CAN_BLOCK_AUTH_REDIRECT) {
+    browser.webRequest.onBeforeRequest.addListener(
+      handler,
+      {
+        // Do not filter by tabId here, see above
+        urls: [`${redirectUri}*`],
+        types: ['main_frame', 'xmlhttprequest'], // fetch request in service worker
+      },
+      ['blocking'],
+    );
+  } else {
+    browser.tabs.onUpdated.addListener(handler);
+  }
 }
 
 const base64urlMapping = {

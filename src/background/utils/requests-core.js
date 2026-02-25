@@ -3,6 +3,9 @@ import { forEachEntry } from '@/common/object';
 import { CHROME } from './ua';
 
 let encoder;
+const IS_MV3 = extensionManifest.manifest_version === 3;
+const CAN_BLOCK_WEBREQUEST = !IS_MV3;
+let warnedMv3HeaderInject;
 
 export const VM_VERIFY = getUniqId('VM-Verify');
 /** @type {Object<string,GMReq.BG>} */
@@ -60,10 +63,10 @@ const SAME_SITE_MAP = {
 const kRequestHeaders = 'requestHeaders';
 const API_EVENTS = {
   onBeforeSendHeaders: [
-    onBeforeSendHeaders, kRequestHeaders, 'blocking', ...EXTRA_HEADERS,
+    onBeforeSendHeaders, kRequestHeaders, ...(CAN_BLOCK_WEBREQUEST ? ['blocking'] : []), ...EXTRA_HEADERS,
   ],
   onHeadersReceived: [
-    onHeadersReceived, kResponseHeaders, 'blocking', ...EXTRA_HEADERS,
+    onHeadersReceived, kResponseHeaders, ...(CAN_BLOCK_WEBREQUEST ? ['blocking'] : []), ...EXTRA_HEADERS,
   ],
 };
 
@@ -80,7 +83,9 @@ function onHeadersReceived({ [kResponseHeaders]: headers, requestId, url }) {
         if (h.name.toLowerCase() !== kSetCookie) return true;
         if (storeId) setCookieInStore(h.value, storeId, url);
       });
-      return { [kResponseHeaders]: headers };
+      if (CAN_BLOCK_WEBREQUEST) {
+        return { [kResponseHeaders]: headers };
+      }
     }
   }
 }
@@ -94,6 +99,9 @@ function onBeforeSendHeaders({ [kRequestHeaders]: headers, requestId, url }) {
     verify[requestId] = reqId;
     req.coreId = requestId;
     req.url = url; // remember redirected URL with #hash as it's stripped in XHR.responseURL
+    if (!CAN_BLOCK_WEBREQUEST) {
+      return;
+    }
     const headersMap = {};
     const headers2 = headersToInject[reqId];
     const combinedHeaders = headers2 && {};
@@ -119,6 +127,14 @@ function onBeforeSendHeaders({ [kRequestHeaders]: headers, requestId, url }) {
 
 export function toggleHeaderInjector(reqId, headers) {
   if (headers) {
+    if (!CAN_BLOCK_WEBREQUEST) {
+      if (!warnedMv3HeaderInject) {
+        warnedMv3HeaderInject = true;
+        console.warn('MV3: request header injection is limited without webRequest blocking.');
+      }
+      headersToInject[reqId] = headers;
+      return;
+    }
     /* Listening even if `headers` array is empty to get the request's id.
      * Registering just once to avoid a bug in Chrome:
      * it adds a new internal registration even if the function reference is the same */

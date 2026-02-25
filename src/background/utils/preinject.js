@@ -37,6 +37,8 @@ let injectInto;
 let ffInject;
 let xhrInject = false; // must be initialized for proper comparison when toggling
 let xhrInjectKey;
+const IS_MV3 = extensionManifest.manifest_version === 3;
+const CAN_BLOCK_WEBREQUEST = !IS_MV3;
 
 const sessionId = getUniqId();
 const API_HEADERS_RECEIVED = browser.webRequest.onHeadersReceived;
@@ -45,7 +47,7 @@ const API_CONFIG = {
   types: ['main_frame', 'sub_frame'],
 };
 const API_EXTRA = [
-  'blocking', // used for xhrInject and to make Firefox fire the event before GetInjected
+  CAN_BLOCK_WEBREQUEST && 'blocking', // used for xhrInject and to make Firefox fire the event before GetInjected
   kResponseHeaders,
   browser.webRequest.OnHeadersReceivedOptions.EXTRA_HEADERS,
 ].filter(Boolean);
@@ -312,6 +314,12 @@ function onOptionChanged(changes) {
 }
 
 function toggleXhrInject(enable) {
+  if (enable && !CAN_BLOCK_WEBREQUEST) {
+    if (process.env.DEBUG) {
+      console.warn('MV3: xhrInject requires webRequest blocking and is disabled.');
+    }
+    enable = false;
+  }
   if (enable) enable = injectInto !== CONTENT;
   if (xhrInject === enable) return;
   xhrInject = enable;
@@ -370,7 +378,7 @@ function onHeadersReceived(info) {
   if (bag && !bag[FORCE_CONTENT] && bag[INJECT]?.[SCRIPTS] && !skippedTabs[info.tabId]) {
     const ffReg = IS_FIREFOX && info.url.startsWith('https:')
       && detectStrictCsp(info, bag);
-    const res = xhrInject && prepareXhrBlob(info, bag);
+    const res = xhrInject && CAN_BLOCK_WEBREQUEST && prepareXhrBlob(info, bag);
     return ffReg ? ffReg.then(res && (() => res)) : res;
   }
 }

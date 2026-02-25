@@ -12,6 +12,9 @@ import {
   tabsOnUpdated,
 } from './tabs';
 import { FIREFOX } from './ua';
+const IS_MV3 = extensionManifest.manifest_version === 3;
+const CAN_BLOCK_INSTALL_INTERCEPT = IS_FIREFOX || !IS_MV3;
+const USERJS_URL_RE = /\.user\.js([?#]|$)/;
 
 addPublicCommands({
   async CheckInstallerTab(tabId, src) {
@@ -135,24 +138,28 @@ browser.tabs.onCreated.addListener((tab) => {
   }
 });
 
-browser.webRequest.onBeforeRequest.addListener((req) => {
+const onUserJsRequest = (req) => {
   const { method, tabId, url } = req;
   if (method !== 'GET') {
     return;
   }
   // open a real URL for simplified userscript URL listed in devtools of the web page
   if (url.startsWith(extensionRoot)) {
+    if (!CAN_BLOCK_INSTALL_INTERCEPT && tabId >= 0) {
+      browser.tabs.update(tabId, { url: resolveVirtualUrl(url) });
+    }
     return { redirectUrl: resolveVirtualUrl(url) };
   }
   let isWhitelisted;
   if (!cache.has(`bypass:${url}`)
   && ((isWhitelisted = whitelistRe.test(url)) || !blacklistRe.test(url))) {
     maybeInstallUserJs(tabId, url, isWhitelisted);
-    return IS_FIREFOX
+    return CAN_BLOCK_INSTALL_INTERCEPT && (IS_FIREFOX
       ? { cancel: true } // for sites with strict CSP in FF
-      : { redirectUrl: 'javascript:void 0' }; // eslint-disable-line no-script-url
+      : { redirectUrl: 'javascript:void 0' }); // eslint-disable-line no-script-url
   }
-}, {
+};
+const userJsFilter = {
   urls: [
     // 1. *:// comprises only http/https
     // 2. the API ignores #hash part
@@ -164,4 +171,12 @@ browser.webRequest.onBeforeRequest.addListener((req) => {
     `${extensionRoot}*.user.js`,
   ],
   types: ['main_frame'],
-}, ['blocking']);
+};
+if (CAN_BLOCK_INSTALL_INTERCEPT) {
+  browser.webRequest.onBeforeRequest.addListener(onUserJsRequest, userJsFilter, ['blocking']);
+} else {
+  tabsOnUpdated.addListener((tabId, { url }) => {
+    if (!url || !USERJS_URL_RE.test(url)) return;
+    onUserJsRequest({ method: 'GET', tabId, url });
+  });
+}
