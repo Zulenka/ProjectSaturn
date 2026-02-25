@@ -226,8 +226,9 @@ export async function executeScriptInTab(tabId, options) {
   if (browser.tabs.executeScript) {
     return browser.tabs.executeScript(tabId, options);
   }
-  const api = chrome.scripting?.executeScript;
-  if (!api) {
+  const promiseApi = browser.scripting?.executeScript;
+  const callbackApi = chrome.scripting?.executeScript;
+  if (!promiseApi && !callbackApi) {
     throw new Error('tabs.executeScript and scripting.executeScript are unavailable');
   }
   const target = { tabId };
@@ -244,7 +245,15 @@ export async function executeScriptInTab(tabId, options) {
     };
     injectDetails.args = [options.code || ''];
   }
-  const result = await browser.scripting.executeScript(injectDetails);
+  const result = promiseApi
+    ? await promiseApi(injectDetails)
+    : await new Promise((resolve, reject) => {
+      callbackApi(injectDetails, (res) => {
+        const err = chrome.runtime.lastError;
+        if (err) reject(new Error(err.message));
+        else resolve(res || []);
+      });
+    });
   return result.map(item => item.result);
 }
 
