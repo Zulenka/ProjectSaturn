@@ -46,7 +46,7 @@ export function initHooks() {
  */
 export function sendCmd(cmd, data, options) {
   // Firefox+Vue3 bug workaround for "Proxy object could not be cloned"
-  if (!process.env.IS_INJECTED && IS_FIREFOX && window._bg !== 1 && isObject(data)) {
+  if (!process.env.IS_INJECTED && IS_FIREFOX && globalThis._bg !== 1 && isObject(data)) {
     data = deepCopy(data);
   }
   return sendMessage({ cmd, data }, options);
@@ -77,7 +77,8 @@ export const getBgPage = () => browser.extension.getBackgroundPage?.();
  */
 export function sendCmdDirectly(cmd, data, options, fakeSrc) {
   const bg = !COMMANDS_WITH_SRC.includes(cmd) && getBgPage();
-  const bgCopy = bg && bg !== window && bg.deepCopy;
+  const ownGlobal = typeof window !== 'undefined' ? window : globalThis;
+  const bgCopy = bg && bg !== ownGlobal && bg.deepCopy;
   if (!bgCopy) {
     return sendCmd(cmd, data, options);
   }
