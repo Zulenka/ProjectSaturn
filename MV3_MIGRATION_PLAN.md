@@ -129,7 +129,7 @@ Exit criteria:
 
 - [x] Move `browserAction` assumptions to `action` abstraction for Chromium MV3.
 - [x] Update popup prefetch/injectability checks that rely on MV2 APIs.
-- [ ] Validate badge/menu states under worker wake/suspend behavior.
+- [x] Validate badge/menu states under worker wake/suspend behavior.
 
 Exit criteria:
 - Popup and action behaviors are stable and match documented expectations.
