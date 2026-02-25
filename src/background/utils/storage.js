@@ -75,8 +75,8 @@ class VMStorageArea {
 }
 
 // TODO: add Firefox version to the comment when https://bugzil.la/1910669 is fixed
-/** @type {() => Promise<string[]>} Chromium 130+ */
-export const getStorageKeys = api.getKeys;
+/** @type {() => Promise<string[]|void>} Chromium 130+ */
+export const getStorageKeys = () => api.getKeys?.call(api);
 export const S_CACHE = 'cache';
 export const S_CACHE_PRE = 'cac:';
 export const S_CODE = 'code';

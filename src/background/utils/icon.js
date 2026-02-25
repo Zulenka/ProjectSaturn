@@ -219,18 +219,27 @@ async function setIcon({ id: tabId } = {}, data = badges[tabId] || {}) {
   data.icon = mod;
   const pathData = {};
   const iconData = {};
+  let hasImageData = true;
   for (const n of SIZES) {
     const url = `${ICON_PREFIX}${n}${mod}.png`;
     pathData[n] = url;
-    iconData[n] = iconDataCache[url]
+    const imageData = iconDataCache[url]
       || await (iconCache[url] || (iconCache[url] = loadIcon(url))) && iconDataCache[url];
+    if (imageData) {
+      iconData[n] = imageData;
+    } else {
+      hasImageData = false;
+    }
   }
   // imageData doesn't work in Firefox Android, so we also set path here
-  browserAction.setIcon({
+  const payload = {
     tabId,
     path: pathData,
-    imageData: iconData,
-  });
+  };
+  if (hasImageData) {
+    payload.imageData = iconData;
+  }
+  browserAction.setIcon(payload);
 }
 
 /** Omitting `data` = check whether injection is allowed for `url` */

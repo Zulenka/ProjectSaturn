@@ -62,4 +62,37 @@ describe('icon menu handlers', () => {
     handleHotkeyOrMenu('updateScriptsInTab', { id: 42 });
     expect(commands.CheckUpdate).toHaveBeenCalledWith([10, 11]);
   });
+
+  test('setIcon falls back to path-only payload when imageData is unavailable', async () => {
+    jest.resetModules();
+    setupBrowserApis();
+    const RealImage = global.Image;
+    global.Image = class BrokenImage {
+      constructor() {
+        this.width = 0;
+        this.height = 0;
+      }
+
+      set src(value) {
+        this._src = value;
+        setTimeout(() => this.onload?.(), 0);
+      }
+    };
+    try {
+      const { setBadge } = require('@/background/utils/icon');
+      global.chrome.action.setIcon.mockClear();
+      setBadge([10], true, {
+        tab: { id: 77, url: 'https://example.com/' },
+        [kFrameId]: 0,
+        [kTop]: true,
+      });
+      await new Promise(resolve => setTimeout(resolve, 25));
+      const payload = global.chrome.action.setIcon.mock.calls.at(-1)?.[0];
+      expect(payload).toBeTruthy();
+      expect(payload.path).toBeTruthy();
+      expect(payload.imageData).toBeUndefined();
+    } finally {
+      global.Image = RealImage;
+    }
+  });
 });

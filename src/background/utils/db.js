@@ -118,14 +118,14 @@ addOwnCommands({
 (async () => {
   /** @type {string[]} */
   let allKeys, keys;
-  if (getStorageKeys) {
-    allKeys = await getStorageKeys();
+  allKeys = await getStorageKeys();
+  if (allKeys) {
     // Filtering and creating Map in atomic native code operations instead of js loop
     keys = allKeys.join('\n').replace(/^(?:(options|version|(?:scr|mod):\d+)|\S+)$/gm, '$1').trim();
     dbKeys = new Map(JSON.parse(`[${keys.replace(/\S+/g, '["$&",1],').slice(0, -1)}]`));
     keys = keys.split(/\n+/);
   }
-  const lastVersion = (!getStorageKeys || dbKeys.has(kVersion))
+  const lastVersion = (!allKeys || dbKeys.has(kVersion))
     && await storage.base.getOne(kVersion);
   const version = process.env.VM_VER;
   const versionChanged = version !== lastVersion;
