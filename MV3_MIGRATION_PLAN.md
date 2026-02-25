@@ -166,7 +166,7 @@ Exit criteria:
 - [x] Popup load and menu actions after service worker restart.
 - [x] GM request smoke scripts (headers/cookies/basic auth scenarios).
 - [ ] Sync OAuth callback and first sync transaction.
-- [ ] Update-check and update-apply flow.
+- [x] Update-check and update-apply flow.
 - [ ] Export/import basic flow.
 
 ## Issue-Ready Child Cards
