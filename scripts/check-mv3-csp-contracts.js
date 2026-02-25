@@ -39,6 +39,11 @@ function run() {
     /src:\s*'javascript:void 0'/,
     'inject: javascript: iframe bootstrap must not be used',
   );
+  assertContains(
+    injectContent,
+    /const\s+forceContentByMeta\s*=\s*!isXml\s*&&\s*hasStrictMetaCsp\(\);[\s\S]*?if\s*\(isXml\s*\|\|\s*data\[FORCE_CONTENT\]\s*\|\|\s*forceContentByMeta\)/,
+    'inject: strict meta CSP must force content-realm before page handshake',
+  );
 
   assertContains(
     preinject,

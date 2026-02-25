@@ -77,6 +77,8 @@ Primary implementation guidance: `deep-research-report.md`.
   - Added `check:mv3:csp-contracts` guard (`scripts/check-mv3-csp-contracts.js`) and wired it into `smoke:mv3:test` to enforce no `javascript:` fallback URLs and preserve MV3 CSP prewarm/prepare contracts.
   - Added extension build identity (`process.env.VM_BUILD_ID`) to diagnostics metadata and MV3 health snapshots so unpacked reload verification can confirm the exact commit/tag under test.
   - Added a concise version/build line in the Settings -> MV3 Runtime Health panel to make unpacked-build verification visible without parsing the full JSON block.
+  - Added strict meta-CSP precheck in injected content runtime so MV3 skips page-handshake inline bootstrap when `script-src` disallows inline scripts, reducing CSP violation noise on first load.
+  - Extended `check:mv3:csp-contracts` to enforce strict meta-CSP content-realm fallback contract in injected runtime.
   - Added regression coverage for MV3 CSP detector listener wiring and non-`javascript:` MV2 install intercept redirect behavior.
   - Re-ran MV3 smoke pipeline after CSP hardening updates (`smoke:mv3`) with passing status.
 

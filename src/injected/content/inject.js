@@ -18,6 +18,9 @@ let invokeContent;
 let nonce;
 let getAttribute;
 let querySelector;
+const CSP_RE = /(?:^|[;,])\s*(?:script-src(-elem)?|(d)efault-src)(\s+[^;,]+)/g;
+const NONCE_RE = /'nonce-([-+/=\w]+)'/;
+const UNSAFE_INLINE = "'unsafe-inline'";
 
 // https://bugzil.la/1408996
 let VMInitInjection = window[INIT_FUNC_NAME];
@@ -144,7 +147,8 @@ export async function injectScripts(data, info, isXml) {
   bridgeInfo[PAGE] = info;
   bridgeInfo[CONTENT] = info;
   assign(bridge[CACHE], data[CACHE]);
-  if (isXml || data[FORCE_CONTENT]) {
+  const forceContentByMeta = !isXml && hasStrictMetaCsp();
+  if (isXml || data[FORCE_CONTENT] || forceContentByMeta) {
     pageInjectable = false;
   } else if (data[PAGE] && pageInjectable == null) {
     injectPageSandbox(data);
@@ -201,6 +205,28 @@ export async function injectScripts(data, info, isXml) {
   }
   // release for GC
   bridgeInfo = contLists = pageLists = VMInitInjection = null;
+}
+
+function hasStrictMetaCsp() {
+  const meta = document::querySelector('meta[http-equiv="content-security-policy" i]');
+  const csp = meta && meta::getAttribute('content');
+  if (!csp) return false;
+  let match;
+  let scriptSrc;
+  let scriptElemSrc;
+  let defaultSrc;
+  let extracted = '';
+  CSP_RE.lastIndex = 0;
+  while ((match = CSP_RE.exec(csp))) {
+    extracted += match[0];
+    if (match[2]) defaultSrc = match[3];
+    else if (match[1]) scriptElemSrc = match[3];
+    else scriptSrc = match[3];
+  }
+  if (!extracted || extracted.match(NONCE_RE)) return false;
+  return !!(scriptSrc && !scriptSrc.includes(UNSAFE_INLINE)
+    || scriptElemSrc && !scriptElemSrc.includes(UNSAFE_INLINE)
+    || !scriptSrc && !scriptElemSrc && defaultSrc && !defaultSrc.includes(UNSAFE_INLINE));
 }
 
 function didPageLoseInjectability(toContent, scripts) {
