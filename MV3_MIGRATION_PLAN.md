@@ -28,15 +28,15 @@ Ship a Chromium MV3 build that preserves core Violentmonkey behavior for install
 | ID | Workstream | Priority | Status | Owner | Target |
 | --- | --- | --- | --- | --- | --- |
 | MV3-01 | Scope, architecture, and policy lock | P0 | Not started | TBD | Week 1 |
-| MV3-02 | Manifest/build split and artifact generation | P0 | Not started | TBD | Week 1 |
-| MV3-03 | Messaging/RPC decoupling from background page | P0 | Not started | TBD | Week 2 |
-| MV3-04 | Service-worker-safe background runtime | P0 | Not started | TBD | Week 2 |
-| MV3-05 | Injection engine MV3 port | P0 | Not started | TBD | Weeks 3-4 |
-| MV3-06 | GM request/network interception redesign | P0 | Not started | TBD | Weeks 4-5 |
-| MV3-07 | `.user.js` install and redirect flow replacement | P0 | Not started | TBD | Week 5 |
-| MV3-08 | Sync OAuth callback interception replacement | P1 | Not started | TBD | Week 6 |
-| MV3-09 | UI/action/popup compatibility polish | P1 | Not started | TBD | Week 7 |
-| MV3-10 | CI/release rollout and stabilization | P0 | Not started | TBD | Week 8 |
+| MV3-02 | Manifest/build split and artifact generation | P0 | In progress | TBD | Week 1 |
+| MV3-03 | Messaging/RPC decoupling from background page | P0 | In progress | TBD | Week 2 |
+| MV3-04 | Service-worker-safe background runtime | P0 | In progress | TBD | Week 2 |
+| MV3-05 | Injection engine MV3 port | P0 | In progress | TBD | Weeks 3-4 |
+| MV3-06 | GM request/network interception redesign | P0 | In progress | TBD | Weeks 4-5 |
+| MV3-07 | `.user.js` install and redirect flow replacement | P0 | In progress | TBD | Week 5 |
+| MV3-08 | Sync OAuth callback interception replacement | P1 | In progress | TBD | Week 6 |
+| MV3-09 | UI/action/popup compatibility polish | P1 | In progress | TBD | Week 7 |
+| MV3-10 | CI/release rollout and stabilization | P0 | In progress | TBD | Week 8 |
 
 ## Milestones and Checklists
 
