@@ -145,7 +145,7 @@ browser.runtime.onConnect.addListener(port => {
   port.onDisconnect.addListener(() => {
     clearValueOpener(tabId);
     watchStorage(fn, cfg, false);
-    delete watchers[id];
+    if (id != null) delete watchers[id];
   });
 });
 
