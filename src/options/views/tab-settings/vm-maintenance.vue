@@ -13,6 +13,18 @@
     <button @click="confirmDanger(clearDiagnostics, 'Clear diagnostics log?')"
             :disabled="store.batch"
             v-text="labelDiagnosticsClear" />
+    <section class="mv3-health mt-1c" v-if="isMv3Runtime">
+      <div class="diagnostics-console-head">
+        <strong>MV3 Runtime Health</strong>
+        <span v-text="mv3Health?.checkedAt ? `Checked: ${formatDiagnosticsTime(mv3Health.checkedAt)}` : ''" />
+      </div>
+      <div class="diagnostics-console-controls">
+        <button @click="refreshMv3Health"
+                :disabled="store.batch || mv3HealthLoading"
+                v-text="labelMv3HealthRefresh" />
+      </div>
+      <pre class="mv3-health-body" v-text="formattedMv3Health" />
+    </section>
     <section class="diagnostics-console mt-1c">
       <div class="diagnostics-console-head">
         <strong>Error Log Console</strong>
@@ -97,6 +109,7 @@ const labelDiagnosticsExport = ref('Export Diagnostics Log');
 const labelDiagnosticsClear = ref('Clear Diagnostics Log');
 const labelDiagnosticsRefresh = ref('Refresh Console');
 const labelDiagnosticsCopy = ref('Copy Visible Logs');
+const labelMv3HealthRefresh = ref('Refresh MV3 Runtime Health');
 const diagnosticsLoading = ref(false);
 const diagnosticsError = ref('');
 const diagnosticsEntries = ref([]);
@@ -108,13 +121,21 @@ const diagnosticsLevel = ref('error');
 const diagnosticsErrorsOnly = ref(true);
 const diagnosticsAutoRefresh = ref(true);
 const diagnosticsLimit = ref(150);
+const mv3Health = ref(null);
+const mv3HealthLoading = ref(false);
 let diagnosticsTimer = 0;
+const isMv3Runtime = extensionManifest.manifest_version === 3;
 
 const diagnosticsFilter = computed(() => ({
   level: diagnosticsLevel.value,
   limit: Math.max(20, Math.min(1000, +diagnosticsLimit.value || 150)),
   ...(diagnosticsErrorsOnly.value ? { type: 'error' } : null),
 }));
+const formattedMv3Health = computed(() => (
+  mv3Health.value
+    ? JSON.stringify(mv3Health.value, null, 2)
+    : 'MV3 health snapshot not loaded.'
+));
 
 async function confirmDanger(fn, title) {
   if (!await showConfirmation(title, { ok: { className: 'has-error' } })) {
@@ -235,6 +256,24 @@ async function copyDiagnosticsConsole() {
   }
 }
 
+async function refreshMv3Health() {
+  if (!isMv3Runtime) return;
+  mv3HealthLoading.value = true;
+  labelMv3HealthRefresh.value = 'Refreshing MV3 Runtime Health...';
+  try {
+    mv3Health.value = await sendCmdDirectly('DiagnosticsGetMv3Health', { force: true });
+    labelMv3HealthRefresh.value = `Refresh MV3 Runtime Health (${mv3Health.value?.userscripts?.state || 'ok'})`;
+  } catch (err) {
+    mv3Health.value = {
+      checkedAt: new Date().toISOString(),
+      error: `${err?.message || err || 'Failed to fetch MV3 runtime health.'}`,
+    };
+    labelMv3HealthRefresh.value = 'Refresh MV3 Runtime Health (error)';
+  } finally {
+    mv3HealthLoading.value = false;
+  }
+}
+
 function syncDiagnosticsAutoRefresh() {
   clearInterval(diagnosticsTimer);
   diagnosticsTimer = 0;
@@ -255,6 +294,7 @@ watch(diagnosticsAutoRefresh, syncDiagnosticsAutoRefresh);
 onMounted(() => {
   loadDiagnosticsConsole();
   syncDiagnosticsAutoRefresh();
+  refreshMv3Health();
 });
 onBeforeUnmount(() => {
   clearInterval(diagnosticsTimer);
@@ -265,6 +305,17 @@ onBeforeUnmount(() => {
 <style scoped>
 .diagnostics-console {
   margin-right: .5rem;
+}
+.mv3-health-body {
+  margin: 0;
+  max-height: 11rem;
+  overflow: auto;
+  border: 1px solid var(--fill-5);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 88%, var(--fill-2));
+  padding: .6rem .7rem;
+  font-size: .74rem;
+  line-height: 1.25;
 }
 .diagnostics-console-head {
   display: flex;

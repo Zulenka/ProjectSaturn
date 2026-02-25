@@ -65,6 +65,20 @@ Expected:
 Expected:
 - Extension wakes correctly and continues injection/sync behavior.
 
+## MV3 Runtime Health Snapshot (Settings)
+
+1. Open Options -> Settings -> Maintenance.
+2. Use `Refresh MV3 Runtime Health`.
+3. Record:
+   - `userscripts.state`
+   - `dnr.hasInstallInterceptRule`
+   - `offscreen.contextCount`
+
+Expected:
+- `userscripts.state` is `ok` after enabling required browser userscripts permission.
+- DNR install-intercept rule is present in MV3 session rules.
+- Offscreen context count is non-null and stable during active MV3 flows.
+
 ## Console Warnings to Capture
 
 - `Violentmonkey cannot run userscripts in this page ...`

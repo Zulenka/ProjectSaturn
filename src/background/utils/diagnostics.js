@@ -1,9 +1,11 @@
 import { addOwnCommands } from './init';
 import { pushAlert } from './alerts';
 import storage from './storage';
+import { getUserScriptsHealth } from './tabs';
 
 const DIAGNOSTICS_STORAGE_KEY = 'diagnosticsLog';
 const DIAGNOSTICS_SCHEMA_VERSION = 1;
+const MV3_INSTALL_DNR_RULE_ID = 940001;
 const DIAGNOSTICS_MAX_ENTRIES = 1500;
 const DIAGNOSTICS_SAVE_DELAY = 1200;
 const MAX_STRING_LENGTH = 400;
@@ -286,6 +288,67 @@ function formatTimestampForFile(ts) {
   return new Date(ts).toISOString().replace(/[.:]/g, '-');
 }
 
+async function getMv3RuntimeHealth({ force } = {}) {
+  const isMv3 = extensionManifest.manifest_version === 3;
+  if (!isMv3) {
+    return {
+      checkedAt: new Date().toISOString(),
+      manifestVersion: extensionManifest.manifest_version,
+      status: 'not-mv3',
+    };
+  }
+  const userscripts = await getUserScriptsHealth(force !== false);
+  const capabilities = {
+    offscreenCreateDocument: !!chrome.offscreen?.createDocument,
+    runtimeGetContexts: !!chrome.runtime?.getContexts,
+    dnrGetSessionRules: !!chrome.declarativeNetRequest?.getSessionRules,
+    dnrUpdateSessionRules: !!chrome.declarativeNetRequest?.updateSessionRules,
+    userScriptsExecute: !!(chrome.userScripts || browser.userScripts)?.execute,
+    userScriptsRegister: !!(chrome.userScripts || browser.userScripts)?.register,
+  };
+  let dnr = {
+    hasInstallInterceptRule: false,
+    sessionRuleCount: null,
+    error: '',
+  };
+  if (chrome.declarativeNetRequest?.getSessionRules) {
+    try {
+      const rules = await chrome.declarativeNetRequest.getSessionRules();
+      dnr = {
+        hasInstallInterceptRule: !!rules?.some(rule => rule?.id === MV3_INSTALL_DNR_RULE_ID),
+        sessionRuleCount: rules?.length || 0,
+        error: '',
+      };
+    } catch (e) {
+      dnr.error = `${e?.message || e || ''}`;
+    }
+  }
+  let offscreen = {
+    contextCount: null,
+    error: '',
+  };
+  if (chrome.runtime?.getContexts) {
+    try {
+      const contexts = await chrome.runtime.getContexts({
+        contextTypes: ['OFFSCREEN_DOCUMENT'],
+        documentUrls: [chrome.runtime.getURL('offscreen/index.html')],
+      });
+      offscreen.contextCount = contexts?.length || 0;
+    } catch (e) {
+      offscreen.error = `${e?.message || e || ''}`;
+    }
+  }
+  return {
+    checkedAt: new Date().toISOString(),
+    manifestVersion: extensionManifest.manifest_version,
+    minimumChromeVersion: extensionManifest.minimum_chrome_version || '',
+    userscripts,
+    capabilities,
+    dnr,
+    offscreen,
+  };
+}
+
 export function logBackgroundAction(event, details, level = 'info') {
   appendEntry(createEntry('action', level, event, details));
 }
@@ -370,6 +433,9 @@ addOwnCommands({
     state.nextId = 1;
     await schedulePersist(true);
     return { cleared };
+  },
+  async DiagnosticsGetMv3Health(options) {
+    return getMv3RuntimeHealth(options);
   },
 });
 

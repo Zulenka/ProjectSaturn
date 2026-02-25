@@ -68,6 +68,7 @@ Primary implementation guidance: `deep-research-report.md`.
   - Expanded MV3 contract guards to block direct `scripting.executeScript` call sites outside the shared tabs wrapper and to enforce register-first/legacy-fallback-default-disabled runtime invariants.
   - Added bounded offscreen message timeouts for WebDAV parse / GM request relay / abort signaling to enforce runtime message boundaries in MV3 service-worker flows.
   - Added dedicated offscreen boundary regression coverage (`test/background/offscreen.test.js`) and included it in MV3 smoke unit suite.
+  - Added an MV3 runtime health snapshot command (`DiagnosticsGetMv3Health`) plus settings UI panel to report userscripts capability state, DNR session-rule presence, and offscreen context visibility for Chrome/Opera retest diagnostics.
   - Re-ran MV3 validation gates after hardening (`smoke:mv3:test`, `build:all:mv3`, `verify:artifacts:mv3`) with passing status.
 
 ## Evidence Pointers

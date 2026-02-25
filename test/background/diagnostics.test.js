@@ -96,4 +96,28 @@ describe('diagnostics logging backend', () => {
     const after = await commands.DiagnosticsGetLog();
     expect(after.entries).toEqual([]);
   });
+
+  test('mv3 health command returns userscripts/offscreen/dnr snapshot', async () => {
+    setupBrowserApis();
+    global.extensionManifest.manifest_version = 3;
+    global.chrome.runtime.getURL = jest.fn(path => `chrome-extension://id/${path}`);
+    global.chrome.runtime.getContexts = jest.fn(async () => [{ contextType: 'OFFSCREEN_DOCUMENT' }]);
+    global.chrome.declarativeNetRequest = {
+      ...(global.chrome.declarativeNetRequest || {}),
+      getSessionRules: jest.fn(async () => [{ id: 940001 }]),
+    };
+    global.chrome.userScripts = {
+      register: jest.fn(async () => {}),
+      unregister: jest.fn(async () => {}),
+    };
+    global.browser.userScripts = global.chrome.userScripts;
+    require('@/background/utils/diagnostics');
+    const { commands } = require('@/background/utils/init');
+    const health = await commands.DiagnosticsGetMv3Health({ force: true });
+    expect(health.manifestVersion).toBe(3);
+    expect(health.userscripts.state).toBe('ok');
+    expect(health.offscreen.contextCount).toBe(1);
+    expect(health.dnr.sessionRuleCount).toBe(1);
+    expect(health.dnr.hasInstallInterceptRule).toBe(true);
+  });
 });
