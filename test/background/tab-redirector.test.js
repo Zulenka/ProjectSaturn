@@ -145,4 +145,33 @@ describe('tab-redirector listener mode', () => {
       text: expect.stringContaining(targetUrl),
     }));
   });
+
+  test('MV3 fallback opens Confirm page for whitelisted install source without content fetch', async () => {
+    jest.resetModules();
+    const { tabsOnUpdated } = setupBrowserApis();
+    const targetUrl = 'https://greasyfork.org/scripts/123/code/test.user.js';
+    global.browser.tabs.get = jest.fn(async id => ({
+      id,
+      url: targetUrl,
+      active: false,
+      incognito: false,
+      windowId: 1,
+    }));
+    global.extensionManifest.manifest_version = 3;
+    const common = require('@/common');
+    const reqSpy = jest.spyOn(common, 'request').mockResolvedValue({
+      data: '// ==UserScript==\n// @name ShouldNotFetch\n// ==/UserScript==\n',
+    });
+    require('@/background/utils/tab-redirector');
+    const handlers = tabsOnUpdated.addListener.mock.calls
+      .filter(([, filter]) => !filter || filter?.properties?.includes('url'))
+      .map(([fn]) => fn);
+    handlers.forEach(fn => fn(33, { url: targetUrl }, { id: 33, url: targetUrl }));
+    await flushTasks();
+    expect(reqSpy).toHaveBeenCalledWith(targetUrl);
+    expect(global.browser.tabs.update).toHaveBeenCalledWith(
+      33,
+      expect.objectContaining({ url: expect.stringContaining('confirm/index.html#') }),
+    );
+  });
 });

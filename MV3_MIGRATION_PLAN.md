@@ -160,14 +160,14 @@ Exit criteria:
 
 ## Test and Acceptance Matrix
 
-- [ ] Install `.user.js` from supported hosts.
-- [ ] Injection correctness in top frame and nested iframe.
-- [ ] `run_at` behavior (`start`, `end`, `idle`) parity checks.
+- [x] Install `.user.js` from supported hosts.
+- [x] Injection correctness in top frame and nested iframe.
+- [x] `run_at` behavior (`start`, `end`, `idle`) parity checks.
 - [x] Popup load and menu actions after service worker restart.
 - [x] GM request smoke scripts (headers/cookies/basic auth scenarios).
 - [x] Sync OAuth callback and first sync transaction.
 - [x] Update-check and update-apply flow.
-- [ ] Export/import basic flow.
+- [x] Export/import basic flow.
 
 ## Issue-Ready Child Cards
 

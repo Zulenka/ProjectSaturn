@@ -139,3 +139,42 @@ test('executeScriptInTab rejects when no compatible injection API exists', async
   await expect(executeScriptInTab(19, { code: '1' }))
     .rejects.toThrow('tabs.executeScript and scripting.executeScript are unavailable');
 });
+
+test('executeScriptInTab keeps top-frame target by default in MV3', async () => {
+  tabs.executeScript = undefined;
+  browser.scripting = undefined;
+  let details;
+  chrome.scripting = {
+    executeScript: jest.fn((injectedDetails, cb) => {
+      details = injectedDetails;
+      cb([{ result: 'top' }]);
+    }),
+  };
+  const res = await executeScriptInTab(20, { code: '2 + 2' });
+  expect(details).toEqual(expect.objectContaining({
+    target: { tabId: 20 },
+    args: ['2 + 2'],
+  }));
+  expect(res).toEqual(['top']);
+});
+
+test('executeScriptInTab does not force immediate injection for document_end and document_idle', async () => {
+  tabs.executeScript = undefined;
+  browser.scripting = undefined;
+  const seen = [];
+  chrome.scripting = {
+    executeScript: jest.fn((injectedDetails, cb) => {
+      if (cb) {
+        seen.push(injectedDetails);
+        cb([{ result: true }]);
+      }
+    }),
+  };
+  await executeScriptInTab(21, { code: '1', [RUN_AT]: 'document_end' });
+  await executeScriptInTab(21, { code: '1', [RUN_AT]: 'document_idle' });
+  expect(seen).toHaveLength(2);
+  seen.forEach(details => {
+    expect(details.target).toEqual({ tabId: 21 });
+    expect(details.injectImmediately).toBeUndefined();
+  });
+});
