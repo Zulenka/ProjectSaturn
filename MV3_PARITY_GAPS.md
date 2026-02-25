@@ -37,7 +37,7 @@ Use it as the source-of-truth companion for MV3 rollout and release notes.
 ## Release/Build Contract
 
 - Firefox release track remains MV2.
-- Chromium release tracks (Chrome + Opera) are packaged/published as MV3.
+- Chromium release tracks (Chrome + Opera + Edge) are packaged/published as MV3.
 - CI builds both tracks for verification (`build:all` + `build:all:mv3`).
 
 ## Remaining High-Risk Validation

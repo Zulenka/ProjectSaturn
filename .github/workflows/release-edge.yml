@@ -34,7 +34,7 @@ jobs:
           SYNC_ONEDRIVE_CLIENT_ID: ${{ secrets.SYNC_ONEDRIVE_CLIENT_ID }}
         run: |
           mkdir -p $ASSETS_DIR
-          TARGET_BROWSER=chrome yarn build
+          TARGET_BROWSER=chrome TARGET_MANIFEST=mv3 yarn build
           cd dist && zip -r ../$ASSETS_DIR/$ASSET_CHROME_ZIP . && cd ..
 
       - uses: denoland/setup-deno@v2
