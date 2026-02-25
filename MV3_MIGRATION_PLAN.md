@@ -52,6 +52,9 @@ Reference ADR:
 - [ ] Publish design note in `#1934` and pin it as source of truth.
 - [ ] Create all child issues listed in this plan and link them to `#1934`.
 
+Blocker note (2026-02-25):
+- Repository `Zulenka/ProjectSaturn` currently has GitHub issues disabled, so `#1934` publication/linking tasks are blocked until issues are enabled.
+
 Exit criteria:
 - Program assumptions are explicit and approved by maintainers.
 - No unresolved architecture questions block implementation issues.

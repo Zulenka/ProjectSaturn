@@ -9,6 +9,19 @@ if ! command -v gh >/dev/null 2>&1; then
   exit 127
 fi
 
+probe_err="$(mktemp)"
+if ! gh issue list --repo "$REPO" --limit 1 >/dev/null 2>"$probe_err"; then
+  if grep -qi "disabled issues" "$probe_err"; then
+    echo "Error: '$REPO' has issues disabled, so MV3 issue triage reporting is unavailable." >&2
+    rm -f "$probe_err"
+    exit 2
+  fi
+  cat "$probe_err" >&2
+  rm -f "$probe_err"
+  exit 1
+fi
+rm -f "$probe_err"
+
 count() {
   local query="$1"
   gh issue list --repo "$REPO" --search "$query" --json number --jq 'length'

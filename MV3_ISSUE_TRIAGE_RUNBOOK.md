@@ -40,3 +40,8 @@ Example query:
 
 - Do not advance canary -> beta or beta -> stable while unresolved `mv3` P0/P1 regressions remain.
 - Reference `MV3_ROLLOUT_CHECKLIST.md` rollback triggers for immediate rollback conditions.
+
+## Repository constraint
+
+- If GitHub issues are disabled for the repository, `mv3` issue-label triage cannot run.
+- In that case, keep rollout gating on alternate intake channels and re-enable issues before stable rollout.
