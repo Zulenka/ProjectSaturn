@@ -42,6 +42,5 @@ Use it as the source-of-truth companion for MV3 rollout and release notes.
 
 ## Remaining High-Risk Validation
 
-- End-to-end GM request behavior verification with real-world scripts (headers/cookies/auth edge cases).
-- Service-worker restart resilience checks for popup/options/confirm interaction loops.
-- Install-flow regression matrix across supported hosts and navigation edge cases.
+- Staged store rollout monitoring (canary -> beta -> stable) with `mv3` regression triage.
+- Strict-CSP and iframe-heavy site matrix validation against production-like browsing sessions.
