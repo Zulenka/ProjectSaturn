@@ -322,6 +322,23 @@ test('executeScriptInTab falls back when userScripts registration fails', async 
   expect(res).toEqual(['legacy']);
 });
 
+test('executeScriptInTab can disable legacy fallback when userscripts path is unavailable', async () => {
+  tabs.get = jest.fn(async () => ({ url: 'https://example.com/page' }));
+  tabs.executeScript = undefined;
+  browser.scripting = undefined;
+  chrome.scripting = undefined;
+  chrome.userScripts = {};
+  browser.userScripts = chrome.userScripts;
+  const res = await executeScriptInTab(26, {
+    code: 'window.__vm = false;',
+    tryUserScripts: true,
+    allowRegisterFallback: false,
+    allowLegacyCodeFallback: false,
+    [kFrameId]: 0,
+  });
+  expect(res).toEqual([]);
+});
+
 test('getTabUrl prefers current tab.url over pendingUrl', () => {
   const { getTabUrl } = require('@/background/utils/tabs');
   expect(getTabUrl({

@@ -236,9 +236,11 @@ export async function executeScriptInTab(tabId, options) {
   if (options.tryUserScripts) {
     const executed = await executeUserScriptCode(tabId, options);
     if (executed) return executed;
-    if (await registerUserScriptOnce(tabId, options)) {
+    if (options.allowRegisterFallback !== false
+    && await registerUserScriptOnce(tabId, options)) {
       return [true];
     }
+    if (options.allowLegacyCodeFallback === false) return [];
   }
   if (browser.tabs.executeScript) {
     return browser.tabs.executeScript(tabId, options);

@@ -76,12 +76,16 @@ async function augmentSetPopup(data, src, key) {
 }
 
 async function isInjectable(tabId, badgeData) {
+  const isMv3 = extensionManifest.manifest_version === 3;
   return badgeData[INJECT]
     && await sendTabCmd(tabId, VIOLENTMONKEY, null, { [kFrameId]: 0 })
     || (
       await executeScriptInTab(tabId, {
         code: '1',
         [RUN_AT]: 'document_start',
+        tryUserScripts: isMv3,
+        allowRegisterFallback: false,
+        allowLegacyCodeFallback: false,
       })
       .catch(() => [])
     )[0];

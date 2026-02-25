@@ -11,6 +11,7 @@ Primary implementation guidance: `deep-research-report.md`.
 | --- | --- | --- | --- |
 | #12 | MV3 install regression: Illegal invocation on StorageArea + imageData error during install | Closed | User validated install succeeds in Chrome (2026-02-25). |
 | #13 | MV3/Opera regression: userscripts blocked with noninjectable warning on expected scriptable page | Open | Still under investigation/retest on Opera (`torn.com` forum URL). |
+| #15 | MV3 CSP EvalError on blocked injection fallback | Open | Root cause tracked; CSP-safe `userScripts.execute` path shipped in `81c97512`. |
 
 ## Priority Findings
 
@@ -44,6 +45,7 @@ Primary implementation guidance: `deep-research-report.md`.
   - Wired content-realm preinject path to opt into `userScripts` on MV3 top frame while retaining `executeScript` fallback for parity.
   - Added regression coverage for `registerUserScriptOnce` success/fallback and `executeScriptInTab` `tryUserScripts` behavior (`test/background/tabs.test.js`).
   - Fixed CSP-blocked fallback path by preferring `userScripts.execute` for MV3 `tryUserScripts` injections; extended preinject to opt in across frames.
+  - Added opt-out guards for legacy eval fallback in MV3 probe/warn call sites (`popup-tracker`, `tab-redirector`) so they do not trigger CSP eval errors when userscripts APIs are unavailable.
   - Verified local MV3 build and contract checks pass (`build:all:mv3`, `smoke:mv3:test`, `check:mv3:*`); rollout gate GH issue query step is environment-network dependent.
   - Added `SKIP_GH_ISSUE_CHECKS=1` override in rollout gate script so local beta/canary/stable gating can still run in restricted network environments.
   - Local rollout gates now pass in offline mode for canary/beta/stable (`SKIP_GH_ISSUE_CHECKS=1 yarn -s rollout:mv3:{canary|beta|stable}`).
