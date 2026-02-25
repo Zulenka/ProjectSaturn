@@ -78,9 +78,9 @@ Exit criteria:
 
 ## M4: Service Worker Safety (Week 2)
 
-- [ ] Remove or isolate background DOM-dependent features (clipboard, icon rasterization, similar).
+- [x] Remove or isolate background DOM-dependent features (clipboard, icon rasterization, similar).
 - [ ] Introduce offscreen document path only where required.
-- [ ] Ensure no hidden dependency on `document` lifecycle in background runtime.
+- [x] Ensure no hidden dependency on `document` lifecycle in background runtime.
 - [ ] Add smoke tests for worker suspend/resume continuity.
 
 Exit criteria:
