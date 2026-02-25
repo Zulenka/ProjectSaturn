@@ -443,7 +443,11 @@ function handleEditScript(id) {
 }
 async function onHashChange() {
   const [tab, id, cacheId] = store.route.paths;
-  const newData = id === '_new' && await sendCmdDirectly('NewScript', +cacheId);
+  const parsedCacheId = Number.parseInt(cacheId, 10);
+  const newData = id === '_new' && await sendCmdDirectly(
+    'NewScript',
+    Number.isSafeInteger(parsedCacheId) && parsedCacheId > 0 ? parsedCacheId : -1,
+  );
   const script = newData ? newData.script : +id && getCurrentList().find(s => s.props.id === +id);
   const scrollElem1 = scroller.value;
   const scrollElem2 = document.scrollingElement; // for compact layout
