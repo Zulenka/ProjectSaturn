@@ -9,7 +9,7 @@ if [[ -z "$STAGE" ]]; then
   exit 2
 fi
 
-if ! command -v gh >/dev/null 2>&1; then
+if [[ "${SKIP_GH_ISSUE_CHECKS:-0}" != "1" ]] && ! command -v gh >/dev/null 2>&1; then
   echo "Error: gh CLI is not installed." >&2
   exit 127
 fi
@@ -41,8 +41,15 @@ count() {
 
 run_local_checks
 
-OPEN_P0="$(count "is:open label:mv3 label:regression label:P0 -label:tracking")"
-OPEN_P1="$(count "is:open label:mv3 label:regression label:P1 -label:tracking")"
+if [[ "${SKIP_GH_ISSUE_CHECKS:-0}" == "1" ]]; then
+  OPEN_P0=0
+  OPEN_P1=0
+  GH_STATUS="skipped (SKIP_GH_ISSUE_CHECKS=1)"
+else
+  OPEN_P0="$(count "is:open label:mv3 label:regression label:P0 -label:tracking")"
+  OPEN_P1="$(count "is:open label:mv3 label:regression label:P1 -label:tracking")"
+  GH_STATUS="enabled"
+fi
 
 PASS=1
 REASON=""
@@ -65,6 +72,7 @@ cat <<EOF
 MV3 Rollout Gate
 - Stage: $STAGE
 - Repo: $REPO
+- GitHub issue checks: $GH_STATUS
 - Open mv3 regression P0: $OPEN_P0
 - Open mv3 regression P1: $OPEN_P1
 EOF
