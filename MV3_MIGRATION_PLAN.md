@@ -27,7 +27,7 @@ Ship a Chromium MV3 build that preserves core Violentmonkey behavior for install
 
 | ID | Workstream | Priority | Status | Owner | Target |
 | --- | --- | --- | --- | --- | --- |
-| MV3-01 | Scope, architecture, and policy lock | P0 | Not started | TBD | Week 1 |
+| MV3-01 | Scope, architecture, and policy lock | P0 | Completed | TBD | Week 1 |
 | MV3-02 | Manifest/build split and artifact generation | P0 | Completed | TBD | Week 1 |
 | MV3-03 | Messaging/RPC decoupling from background page | P0 | Completed | TBD | Week 2 |
 | MV3-04 | Service-worker-safe background runtime | P0 | Completed | TBD | Week 2 |
