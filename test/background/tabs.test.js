@@ -212,7 +212,7 @@ test('registerUserScriptOnce registers one-shot script and schedules cleanup', a
   const [{ id, matches, persistAcrossSessions }] = register.mock.calls[0][0];
   expect(id).toMatch(/^vm-one-shot-/);
   expect(matches).toEqual(['https://example.com/path/index.html*']);
-  expect(persistAcrossSessions).toBe(false);
+  expect(persistAcrossSessions).toBeUndefined();
   jest.advanceTimersByTime(30e3);
   await Promise.resolve();
   expect(unregister).toHaveBeenCalledWith({ ids: [id] });

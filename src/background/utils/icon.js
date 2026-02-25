@@ -24,6 +24,7 @@ const iconDataCache = {};
 const canRasterizeIcons = typeof Image === 'function'
   && typeof document !== 'undefined'
   && !!document.createElement;
+const CALLBACK_UNSUPPORTED_RE = /no matching signature|too many arguments/i;
 /** @return {string | Promise<string>} */
 export const getImageData = url => iconCache[url] || (iconCache[url] = loadIcon(url));
 // Firefox Android does not support such APIs, use noop
@@ -33,10 +34,16 @@ const browserAction = (() => {
   // Some methods like setBadgeText added callbacks only in Chrome 67+.
   const makeMethod = fn => (...args) => {
     try {
-      // Suppress the "no tab id" error when setting an icon/badge as it cannot be reliably prevented
-      api::fn(...args, ignoreChromeErrors);
+      // Suppress the "no tab id" error when setting an icon/badge as it cannot be reliably prevented.
+      const res = api::fn(...args, ignoreChromeErrors);
+      res?.catch?.(ignoreChromeErrors);
     } catch (e) {
-      api::fn(...args);
+      if (CALLBACK_UNSUPPORTED_RE.test(e?.message || '')) {
+        const res = api::fn(...args);
+        res?.catch?.(ignoreChromeErrors);
+      } else if (process.env.DEBUG) {
+        console.warn('browser action call failed', e);
+      }
     }
   };
   return objectPick(api, [
@@ -67,6 +74,7 @@ const titleNoninjectable = i18n('failureReasonNoninjectable');
 const titleSkipped = i18n('skipScriptsMsg');
 const ALERT_BADGE_TEXT = '•';
 const ALERT_BADGE_COLOR = '#d93025';
+const LAST_RESORT_BADGE_COLOR = '#888888';
 let isApplied;
 /** @type {VMBadgeMode} */
 let showBadge = DEFAULT_SHOW_BADGE;
@@ -247,9 +255,10 @@ function updateBadge({ id: tabId }, data = badges[tabId]) {
 function updateBadgeColor({ id: tabId }, data = badges[tabId]) {
   if (data) {
     const alertState = getAlertsBadgeState();
-    const color = alertState.show ? ALERT_BADGE_COLOR
+    const color = (alertState.show ? ALERT_BADGE_COLOR
       : data[INJECT] ? badgeColor || DEFAULT_BADGE_COLOR
-        : badgeColorBlocked || DEFAULT_BADGE_COLOR_BLOCKED;
+        : badgeColorBlocked || DEFAULT_BADGE_COLOR_BLOCKED)
+      || LAST_RESORT_BADGE_COLOR;
     browserAction.setBadgeBackgroundColor({
       color,
       tabId,

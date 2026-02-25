@@ -121,6 +121,21 @@ describe('icon menu handlers', () => {
     expect(payload.color).toBeTruthy();
   });
 
+  test('badge color invocation errors do not retry without callback', () => {
+    jest.resetModules();
+    setupBrowserApis();
+    global.chrome.action.setBadgeBackgroundColor.mockImplementation(() => {
+      throw new TypeError('Error in invocation of action.setBadgeBackgroundColor');
+    });
+    const { setBadge } = require('@/background/utils/icon');
+    expect(() => setBadge([10], true, {
+      tab: { id: 79, url: 'https://example.com/' },
+      [kFrameId]: 0,
+      [kTop]: true,
+    })).not.toThrow();
+    expect(global.chrome.action.setBadgeBackgroundColor).toHaveBeenCalledTimes(1);
+  });
+
   test('context menu init clears existing items before recreating ids', async () => {
     jest.resetModules();
     const { contextMenus } = setupBrowserApis();

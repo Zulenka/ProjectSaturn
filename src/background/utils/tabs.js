@@ -361,7 +361,6 @@ async function probeUserScriptsHealth() {
       matches: ['https://example.invalid/*'],
       js: [{ code: 'void 0;' }],
       runAt: 'document_start',
-      persistAcrossSessions: false,
     }]);
     await api.unregister?.({ ids: [id] }).catch(noop);
     return {
@@ -533,7 +532,6 @@ export async function registerUserScriptOnce(tabId, options) {
       js: [{ code: options.code || '' }],
       runAt: options[RUN_AT] || 'document_start',
       allFrames: !!options.allFrames,
-      persistAcrossSessions: false,
     }]);
     rememberRegisteredUserScript(tabId, id);
     const timer = setTimeout(() => {
