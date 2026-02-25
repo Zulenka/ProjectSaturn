@@ -679,7 +679,7 @@ function injectContentRealm(toContent, tabId, frameId) {
       code: scr[__CODE].join(''),
       [RUN_AT]: `document_${scr[RUN_AT]}`.replace('body', 'start'),
       ...frameId > 0 && { [kFrameId]: frameId },
-      tryUserScripts: IS_MV3 && frameId === 0,
+      tryUserScripts: IS_MV3,
     };
     executeScriptInTab(tabId, options)
       .then(scr.meta[UNWRAP] && (() => sendTabCmd(tabId, 'Run', id, { [kFrameId]: frameId })));

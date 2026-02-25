@@ -270,6 +270,34 @@ test('executeScriptInTab prefers userScripts path when tryUserScripts is enabled
   expect(res).toEqual([true]);
 });
 
+test('executeScriptInTab uses userScripts.execute when available', async () => {
+  tabs.executeScript = undefined;
+  browser.scripting = undefined;
+  chrome.scripting = {
+    executeScript: jest.fn((details, cb) => cb([{ result: 'legacy' }])),
+  };
+  chrome.userScripts = {
+    execute: jest.fn(async () => [{ result: 'us-ok' }]),
+    register: jest.fn(async () => {}),
+    unregister: jest.fn(async () => {}),
+  };
+  browser.userScripts = chrome.userScripts;
+  const res = await executeScriptInTab(24, {
+    code: 'window.__vm = true;',
+    tryUserScripts: true,
+    [kFrameId]: 7,
+    [RUN_AT]: 'document_start',
+  });
+  expect(chrome.userScripts.execute).toHaveBeenCalledWith(expect.objectContaining({
+    target: { tabId: 24, frameIds: [7] },
+    injectImmediately: true,
+    js: [{ code: 'window.__vm = true;' }],
+  }));
+  expect(chrome.userScripts.register).not.toHaveBeenCalled();
+  expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+  expect(res).toEqual(['us-ok']);
+});
+
 test('executeScriptInTab falls back when userScripts registration fails', async () => {
   tabs.get = jest.fn(async () => ({ url: 'https://example.com/page' }));
   tabs.executeScript = undefined;

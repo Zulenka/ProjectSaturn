@@ -233,8 +233,12 @@ export async function forEachTab(callback) {
  * Returns an array of per-frame results like browser.tabs.executeScript.
  */
 export async function executeScriptInTab(tabId, options) {
-  if (options.tryUserScripts && await registerUserScriptOnce(tabId, options)) {
-    return [true];
+  if (options.tryUserScripts) {
+    const executed = await executeUserScriptCode(tabId, options);
+    if (executed) return executed;
+    if (await registerUserScriptOnce(tabId, options)) {
+      return [true];
+    }
   }
   if (browser.tabs.executeScript) {
     return browser.tabs.executeScript(tabId, options);
@@ -288,6 +292,34 @@ export async function executeScriptInTab(tabId, options) {
 
 function getUserScriptsApi() {
   return chrome.userScripts || browser.userScripts;
+}
+
+/**
+ * Executes code in MV3 via userScripts API when available (Chrome 135+).
+ * Returns null when unavailable/unsupported so callers can fallback.
+ */
+async function executeUserScriptCode(tabId, options) {
+  const api = getUserScriptsApi();
+  if (!api?.execute || !options?.code) return null;
+  const target = { tabId };
+  if (options[kFrameId] != null) target.frameIds = [options[kFrameId]];
+  if (options.allFrames) target.allFrames = true;
+  try {
+    const result = await api.execute({
+      target,
+      js: [{ code: options.code || '' }],
+      ...options[RUN_AT] === 'document_start' && { injectImmediately: true },
+    });
+    if (!result?.map) return [];
+    const err = result.find(item => item?.error)?.error;
+    if (err) throw new Error(err);
+    return result.map(item => item.result);
+  } catch (e) {
+    if (process.env.DEBUG) {
+      console.warn('userScripts.execute fallback to register/executeScript', e);
+    }
+    return null;
+  }
 }
 
 function rememberRegisteredUserScript(tabId, id) {

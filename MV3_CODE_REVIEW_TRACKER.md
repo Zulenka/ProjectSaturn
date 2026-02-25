@@ -43,6 +43,7 @@ Primary implementation guidance: `deep-research-report.md`.
   - Added per-tab `userScripts` cleanup path to unregister tracked one-shot registrations on tab completion/removal (timer fallback retained).
   - Wired content-realm preinject path to opt into `userScripts` on MV3 top frame while retaining `executeScript` fallback for parity.
   - Added regression coverage for `registerUserScriptOnce` success/fallback and `executeScriptInTab` `tryUserScripts` behavior (`test/background/tabs.test.js`).
+  - Fixed CSP-blocked fallback path by preferring `userScripts.execute` for MV3 `tryUserScripts` injections; extended preinject to opt in across frames.
   - Verified local MV3 build and contract checks pass (`build:all:mv3`, `smoke:mv3:test`, `check:mv3:*`); rollout gate GH issue query step is environment-network dependent.
   - Added `SKIP_GH_ISSUE_CHECKS=1` override in rollout gate script so local beta/canary/stable gating can still run in restricted network environments.
   - Local rollout gates now pass in offline mode for canary/beta/stable (`SKIP_GH_ISSUE_CHECKS=1 yarn -s rollout:mv3:{canary|beta|stable}`).
