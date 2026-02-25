@@ -7,6 +7,12 @@
             :disabled="store.batch"
             :title="resetHint"
             v-text="resetText" />
+    <button @click="exportDiagnostics"
+            :disabled="store.batch"
+            v-text="labelDiagnosticsExport" />
+    <button @click="confirmDanger(clearDiagnostics, 'Clear diagnostics log?')"
+            :disabled="store.batch"
+            v-text="labelDiagnosticsClear" />
   </div>
 </template>
 
@@ -14,6 +20,7 @@
 import { ref } from 'vue';
 import Tooltip from 'vueleton/lib/tooltip';
 import { i18n, sendCmdDirectly } from '@/common';
+import { downloadBlob } from '@/common/download';
 import options from '@/common/options';
 import defaults from '@/common/options-defaults';
 import { deepEqual, mapEntry } from '@/common/object';
@@ -24,6 +31,8 @@ const labelVacuum = ref(i18n('buttonVacuum'));
 const i18nResetSettings = i18n('buttonResetSettings');
 const resetHint = ref('');
 const resetText = ref(i18nResetSettings);
+const labelDiagnosticsExport = ref('Export Diagnostics Log');
+const labelDiagnosticsClear = ref('Clear Diagnostics Log');
 
 async function confirmDanger(fn, title) {
   if (!await showConfirmation(title, { ok: { className: 'has-error' } })) {
@@ -56,6 +65,25 @@ async function vacuum() {
     if (errorText) {
       showConfirmation(i18n('msgErrorFetchingResource') + '\n\n' + errorText, { cancel: false });
     }
+  });
+}
+
+async function exportDiagnostics() {
+  await runInBatch(async () => {
+    labelDiagnosticsExport.value = 'Exporting Diagnostics Log...';
+    const payload = await sendCmdDirectly('DiagnosticsExportLog', {
+      level: 'debug',
+      limit: 1500,
+    });
+    downloadBlob(new Blob([payload.content], { type: payload.mimeType }), payload.fileName);
+    labelDiagnosticsExport.value = `Export Diagnostics Log (${payload.entryCount})`;
+  });
+}
+
+async function clearDiagnostics() {
+  await runInBatch(async () => {
+    const { cleared } = await sendCmdDirectly('DiagnosticsClearLog');
+    labelDiagnosticsClear.value = `Diagnostics Log Cleared (${cleared})`;
   });
 }
 </script>
