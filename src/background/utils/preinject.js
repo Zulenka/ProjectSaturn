@@ -415,14 +415,24 @@ function onTabUpdated(tabId, { url }, tab) {
 
 /** @param {chrome.webRequest.WebResponseHeadersDetails} info */
 function onHeadersReceived(info) {
-  const key = getKey(info.url, isTopFrame(info));
-  const bag = cache.get(key);
-  // The INJECT data is normally already in cache if code and values aren't huge
-  if (bag && !bag[FORCE_CONTENT] && bag[INJECT]?.[SCRIPTS] && !skippedTabs[info.tabId]) {
-    const ffReg = IS_FIREFOX && info.url.startsWith('https:')
+  const isTop = isTopFrame(info);
+  const key = getKey(info.url, isTop);
+  let bag = cache.get(key);
+  if (!bag && IS_MV3 && !skippedTabs[info.tabId]) {
+    // onHeadersReceived may fire before tabs.onUpdated prewarm in MV3.
+    bag = prepare(key, info.url, isTop);
+  }
+  // The INJECT data is normally already in cache if code and values aren't huge.
+  // We still run CSP detection for cached env placeholders so hints can be carried
+  // into prepareBag before first page-level injection attempt.
+  if (bag && !skippedTabs[info.tabId]) {
+    const cspPrepare = (IS_MV3 || IS_FIREFOX && info.url.startsWith('https:'))
       && detectStrictCsp(info, bag);
-    const res = xhrInject && CAN_BLOCK_WEBREQUEST && prepareXhrBlob(info, bag);
-    return ffReg ? ffReg.then(res && (() => res)) : res;
+    const res = !bag[FORCE_CONTENT]
+      && bag[INJECT]?.[SCRIPTS]
+      && xhrInject && CAN_BLOCK_WEBREQUEST
+      && prepareXhrBlob(info, bag);
+    return cspPrepare ? cspPrepare.then(res && (() => res)) : res;
   }
 }
 
@@ -469,6 +479,12 @@ async function prepareBag(cacheKey, url, isTop, env, inject, errors) {
   if (!isApplied) return; // the user disabled injection while we awaited
   cache.batch(true);
   const bag = { [INJECT]: inject };
+  if (env.nonce) {
+    inject.nonce = env.nonce;
+  }
+  if (env[FORCE_CONTENT]) {
+    bag[FORCE_CONTENT] = inject[FORCE_CONTENT] = true;
+  }
   const { allIds, [MORE]: envDelayed } = env;
   const moreKey = envDelayed[IDS].length && getUniqId('more');
   Object.assign(inject, {
@@ -720,13 +736,24 @@ function detectStrictCsp(info, bag) {
   if (!h) return;
   const cspResult = analyzeCspForInject(h.value);
   if (!cspResult) return;
+  const hasInjectData = !!bag[INJECT]?.[SCRIPTS];
+  const isMutableBag = bag !== BAG_NOOP && bag !== BAG_NOOP_EXPOSE;
   if (cspResult.nonce) {
-    bag[INJECT].nonce = cspResult.nonce;
+    if (hasInjectData) {
+      bag[INJECT].nonce = cspResult.nonce;
+    } else if (isMutableBag) {
+      bag.nonce = cspResult.nonce;
+    }
   } else if (cspResult.forceContent) {
-    bag[FORCE_CONTENT] = bag[INJECT][FORCE_CONTENT] = true;
+    if (hasInjectData) {
+      bag[FORCE_CONTENT] = bag[INJECT][FORCE_CONTENT] = true;
+    } else if (isMutableBag) {
+      bag[FORCE_CONTENT] = true;
+    }
   } else {
     return;
   }
+  if (!hasInjectData) return;
   const unregistered = unregisterScriptFF(bag);
   if (unregistered && !cspResult.nonce) {
     // Registering only without nonce, otherwise FF will incorrectly reuse it on tab reload

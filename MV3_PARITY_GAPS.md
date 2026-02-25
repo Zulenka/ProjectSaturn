@@ -46,6 +46,7 @@ Use it as the source-of-truth companion for MV3 rollout and release notes.
   - Current behavior: top-frame content injections prefer one-shot `userScripts.register`; probe/frame-targeted paths use `userScripts.execute`.
   - Current behavior: MV3 now disables legacy execute-style fallback by default for `tryUserScripts` paths; fallback requires explicit opt-in.
   - Current behavior: one-shot registrations are unregistered via bounded cleanup timer and startup stale-registration cleanup.
+  - Current behavior: strict-CSP hints from `onHeadersReceived` are now carried through cache-miss prewarm into `prepareBag`, improving first-load content-realm fallback timing in MV3.
 - Subframe and legacy-path parity is still partially execute-style.
   - Current behavior: frame-scoped injection fallback remains active where `userScripts` parity is not fully implemented.
 
