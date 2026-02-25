@@ -62,6 +62,20 @@ test('sendCmdDirectly skips bg direct calls in MV3 mode', async () => {
   expect(res).toEqual({ cmd: 'GetData', data, via: 'runtime' });
 });
 
+test('sendCmdDirectly routes src-sensitive commands through runtime messaging', async () => {
+  runtime.sendMessage = jest.fn(async payload => ({ ...payload, via: 'runtime' }));
+  const bg = {
+    deepCopy: val => JSON.parse(JSON.stringify(val)),
+    handleCommandMessage: jest.fn(async payload => ({ ...payload, via: 'bg' })),
+  };
+  extension.getBackgroundPage = () => bg;
+  const data = { id: 9 };
+  const res = await sendCmdDirectly('ConfirmInstall', data);
+  expect(bg.handleCommandMessage).not.toHaveBeenCalled();
+  expect(runtime.sendMessage).toHaveBeenCalledWith({ cmd: 'ConfirmInstall', data });
+  expect(res).toEqual({ cmd: 'ConfirmInstall', data, via: 'runtime' });
+});
+
 test('sendMessageRetry retries on transient port-closed errors', async () => {
   runtime.sendMessage = jest.fn()
     .mockRejectedValueOnce(new Error('The message port closed before a response was received.'))
