@@ -642,7 +642,7 @@ export function register(Factory) {
   serviceClasses.push(Factory);
 }
 function getCurrent() {
-  return syncConfig.get('current');
+  return syncConfig?.get('current');
 }
 function getService(name) {
   return services[name || getCurrent()];

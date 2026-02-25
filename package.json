@@ -24,6 +24,8 @@
     "lint:js": "eslint --ext .js,.vue . --cache",
     "lint:yml": "gulp check",
     "test": "cross-env BABEL_ENV=test TEST=test jest test",
+    "smoke:mv3:test": "cross-env BABEL_ENV=test TEST=test jest --runInBand test/scripts/manifest-helper.test.js test/scripts/action-helper.test.js test/common/commands.test.js test/background/tabs.test.js",
+    "smoke:mv3": "run-s smoke:mv3:test build:all:mv3",
     "ci": "run-p lint test",
     "bumpVersion": "gulp bump",
     "bump": "run-s ci \"bumpVersion --commit\"",

@@ -35,6 +35,9 @@ jobs:
           SYNC_ONEDRIVE_CLIENT_ID: ${{ secrets.SYNC_ONEDRIVE_CLIENT_ID }}
         run: yarn && yarn build:all && yarn build:all:mv3
 
+      - name: MV3 Smoke Tests
+        run: yarn smoke:mv3:test
+
       - name: Get version and SHA
         run: node scripts/action-helper.js ci
       - name: Upload Artifact
