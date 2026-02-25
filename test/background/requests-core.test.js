@@ -40,6 +40,21 @@ describe('requests-core toggleHeaderInjector', () => {
     expect(warn).toHaveBeenCalledWith(
       'MV3: request header injection is limited without webRequest blocking.',
     );
+    const listener = onBeforeSendHeaders.addListener.mock.calls[0][0];
+    const reqId = 'req1';
+    const requestId = 'core-1';
+    const { requests, VM_VERIFY } = require('@/background/utils/requests-core');
+    requests[reqId] = {};
+    const result = listener({
+      requestId,
+      url: 'https://example.com/data',
+      requestHeaders: [
+        { name: VM_VERIFY, value: reqId },
+      ],
+    });
+    expect(result).toBeUndefined();
+    expect(requests[reqId].coreId).toBe(requestId);
+    expect(requests[reqId].url).toBe('https://example.com/data');
 
     toggleHeaderInjector('req1', null);
     expect(onBeforeSendHeaders.removeListener).not.toHaveBeenCalled();
@@ -63,6 +78,22 @@ describe('requests-core toggleHeaderInjector', () => {
     const resOptions = onHeadersReceived.addListener.mock.calls[0][2];
     expect(reqOptions).toContain('blocking');
     expect(resOptions).toContain('blocking');
+    const listener = onBeforeSendHeaders.addListener.mock.calls[0][0];
+    const reqId = 'req1';
+    const requestId = 'core-2';
+    const { requests, VM_VERIFY } = require('@/background/utils/requests-core');
+    requests[reqId] = {};
+    const result = listener({
+      requestId,
+      url: 'https://example.com/data',
+      requestHeaders: [
+        { name: VM_VERIFY, value: reqId },
+      ],
+    });
+    expect(result).toBeTruthy();
+    expect(result.requestHeaders).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'test', value: '1' }),
+    ]));
     expect(warn).not.toHaveBeenCalledWith(
       'MV3: request header injection is limited without webRequest blocking.',
     );
