@@ -456,6 +456,11 @@ async function onHashChange() {
     state.script = script;
     return;
   }
+  // Script data can still be loading when navigating directly to #scripts/<id>.
+  // Wait for the list to hydrate before deciding whether the id is invalid.
+  if (id && store.loaded !== 'all' && id !== '_new') {
+    return;
+  }
   // Strip the invalid id from the URL so |App| can render the aside,
   // which was hidden to avoid flicker on initial page load directly into the editor.
   if (id) setRoute(tab, true);
@@ -770,7 +775,7 @@ if (screen.availWidth > 767) {
   watch(() => filters.viewTable, adjustNarrowWidth);
 }
 watch(getCurrentList, refreshUI);
-watch(() => store.route.paths[1], onHashChange);
+watch(() => store.route.paths[1], onHashChange, { immediate: true });
 watch(() => store.scripts, val => {
   if ((isEmpty.value = !val.length) && (val = $menuNew.value)) {
     val.focus(); // for Tab navigation and focus highlight
