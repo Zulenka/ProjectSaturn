@@ -95,6 +95,8 @@ describe('tab-redirector listener mode', () => {
       data: '// ==UserScript==\n// @name Example\n// ==/UserScript==\n',
     });
     require('@/background/utils/tab-redirector');
+    const { commands } = require('@/background/utils/init');
+    commands.Notification = jest.fn();
     const handlers = tabsOnUpdated.addListener.mock.calls
       .filter(([, filter]) => !filter || filter?.properties?.includes('url'))
       .map(([fn]) => fn);
@@ -106,6 +108,7 @@ describe('tab-redirector listener mode', () => {
       12,
       expect.objectContaining({ url: expect.stringContaining('confirm/index.html#') }),
     );
+    expect(commands.Notification).not.toHaveBeenCalled();
   });
 
   test('MV3 fallback keeps navigation for invalid user script URL', async () => {
@@ -125,6 +128,8 @@ describe('tab-redirector listener mode', () => {
       data: 'not a userscript',
     });
     require('@/background/utils/tab-redirector');
+    const { commands } = require('@/background/utils/init');
+    commands.Notification = jest.fn();
     const handlers = tabsOnUpdated.addListener.mock.calls
       .filter(([, filter]) => !filter || filter?.properties?.includes('url'))
       .map(([fn]) => fn);
@@ -136,5 +141,8 @@ describe('tab-redirector listener mode', () => {
       .map(([, options]) => options?.url)
       .filter(Boolean);
     expect(updatedUrls).toContain(targetUrl);
+    expect(commands.Notification).toHaveBeenCalledWith(expect.objectContaining({
+      text: expect.stringContaining(targetUrl),
+    }));
   });
 });

@@ -104,6 +104,10 @@ ${code?.length > 1e6 ? code.slice(0, 1e6) + '...' : code}`;
     if (tabId < 0) {
       console.warn(error);
     } else {
+      commands.Notification?.({
+        title: VIOLENTMONKEY,
+        text: `${i18n('msgInvalidScript')}\n${url}`,
+      });
       executeScriptInTab(tabId, {
         code: `console.warn(${JSON.stringify(error)})`,
       });
