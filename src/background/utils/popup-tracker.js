@@ -35,6 +35,21 @@ addOwnCommands({
         reset[INJECT_INTO] = 'off';
       }
     }
+    if (process.env.DEBUG && failure[1] === INJECT_INTO) {
+      const userScripts = chrome.userScripts || browser.userScripts;
+      console.warn('MV3 noninjectable popup diagnosis', {
+        manifestVersion: extensionManifest.manifest_version,
+        tabId,
+        url: tab.url || '',
+        pendingUrl: tab.pendingUrl || '',
+        badgeInjectState: badgeData[INJECT],
+        userscriptsApi: {
+          execute: !!userScripts?.execute,
+          register: !!userScripts?.register,
+        },
+        failure,
+      });
+    }
     data.tab = tab;
     return [cachedSetPopup, data, failure];
   },

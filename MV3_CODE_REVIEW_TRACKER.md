@@ -51,6 +51,7 @@ Primary implementation guidance: `deep-research-report.md`.
   - Updated popup init to treat missing tab URL as unknown (probe first), avoiding premature noninjectable classification when URL is temporarily unavailable.
   - Disabled legacy eval fallback in MV3 preinject path to avoid CSP `unsafe-eval` violations in core userscript injection flow.
   - Added MV3 guard checks to enforce these fallback protections in `scripts/check-mv3-blocking-gates.js`.
+  - Added DEBUG-only noninjectable diagnosis logging in popup init to capture tab URL/pending URL/userscripts capability context during Opera retest.
   - Opened issue #16 to track minimum-version/runtime policy for required userscripts capability support in MV3 release channels.
   - Added once-per-session debug warnings when MV3 userscripts capabilities (`userScripts` / `userScripts.execute`) are unavailable on strict no-legacy-fallback paths.
   - Raised MV3 Chromium `minimum_chrome_version` to `135.0` and added artifact/test assertions for userscripts execute baseline compatibility.
