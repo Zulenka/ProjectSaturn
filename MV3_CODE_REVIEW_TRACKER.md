@@ -74,6 +74,7 @@ Primary implementation guidance: `deep-research-report.md`.
   - Replaced iframe bootstrap `src: 'javascript:void 0'` with `about:blank` in injected content runtime to reduce CSP-triggered script URL violations in strict pages.
   - Enabled MV3 `onHeadersReceived` CSP detection listener path so strict response CSP can force content-realm injection earlier in the preinject flow.
   - Hardened MV3 CSP detection timing by prewarming script env on `onHeadersReceived` cache misses and carrying CSP hints (`forceContent` / `nonce`) into `prepareBag` before first page-level injection attempt.
+  - Added `check:mv3:csp-contracts` guard (`scripts/check-mv3-csp-contracts.js`) and wired it into `smoke:mv3:test` to enforce no `javascript:` fallback URLs and preserve MV3 CSP prewarm/prepare contracts.
   - Added regression coverage for MV3 CSP detector listener wiring and non-`javascript:` MV2 install intercept redirect behavior.
   - Re-ran MV3 smoke pipeline after CSP hardening updates (`smoke:mv3`) with passing status.
 
