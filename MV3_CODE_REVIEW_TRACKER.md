@@ -46,6 +46,7 @@ Primary implementation guidance: `deep-research-report.md`.
   - Verified local MV3 build and contract checks pass (`build:all:mv3`, `smoke:mv3:test`, `check:mv3:*`); rollout gate GH issue query step is environment-network dependent.
   - Added `SKIP_GH_ISSUE_CHECKS=1` override in rollout gate script so local beta/canary/stable gating can still run in restricted network environments.
   - Local rollout gates now pass in offline mode for canary/beta/stable (`SKIP_GH_ISSUE_CHECKS=1 yarn -s rollout:mv3:{canary|beta|stable}`).
+  - Added `SKIP_GH_ISSUE_CHECKS=1` override in MV3 triage report script to allow local reporting flow without GitHub API access.
 
 ## Evidence Pointers
 
