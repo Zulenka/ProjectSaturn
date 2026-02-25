@@ -69,7 +69,11 @@ const COMMANDS_WITH_SRC = [
   'SetPopup',
 */
 ];
-export const getBgPage = () => browser.extension?.getBackgroundPage?.();
+export const getBgPage = () => (
+  extensionManifest.manifest_version === 3
+    ? null
+    : browser.extension?.getBackgroundPage?.()
+);
 
 /**
  * Sends the command+data directly so it's synchronous and faster than sendCmd thanks to deepCopy.
