@@ -46,6 +46,7 @@ Primary implementation guidance: `deep-research-report.md`.
   - Added regression coverage for `registerUserScriptOnce` success/fallback and `executeScriptInTab` `tryUserScripts` behavior (`test/background/tabs.test.js`).
   - Fixed CSP-blocked fallback path by preferring `userScripts.execute` for MV3 `tryUserScripts` injections; extended preinject to opt in across frames.
   - Added opt-out guards for legacy eval fallback in MV3 probe/warn call sites (`popup-tracker`, `tab-redirector`) so they do not trigger CSP eval errors when userscripts APIs are unavailable.
+  - Reduced false MV3 `noninjectable` states in popup initialization by treating empty probe results as injectable when userscripts APIs are present.
   - Verified local MV3 build and contract checks pass (`build:all:mv3`, `smoke:mv3:test`, `check:mv3:*`); rollout gate GH issue query step is environment-network dependent.
   - Added `SKIP_GH_ISSUE_CHECKS=1` override in rollout gate script so local beta/canary/stable gating can still run in restricted network environments.
   - Local rollout gates now pass in offline mode for canary/beta/stable (`SKIP_GH_ISSUE_CHECKS=1 yarn -s rollout:mv3:{canary|beta|stable}`).

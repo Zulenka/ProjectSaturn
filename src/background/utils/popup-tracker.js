@@ -77,7 +77,7 @@ async function augmentSetPopup(data, src, key) {
 
 async function isInjectable(tabId, badgeData) {
   const isMv3 = extensionManifest.manifest_version === 3;
-  return badgeData[INJECT]
+  const probe = badgeData[INJECT]
     && await sendTabCmd(tabId, VIOLENTMONKEY, null, { [kFrameId]: 0 })
     || (
       await executeScriptInTab(tabId, {
@@ -89,6 +89,12 @@ async function isInjectable(tabId, badgeData) {
       })
       .catch(() => [])
     )[0];
+  if (probe != null) return probe;
+  if (isMv3) {
+    const userScripts = chrome.userScripts || browser.userScripts;
+    if (userScripts?.execute || userScripts?.register) return true;
+  }
+  return false;
 }
 
 function onPopupOpened(port) {
