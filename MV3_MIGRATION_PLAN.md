@@ -13,6 +13,7 @@ Ship a Chromium MV3 build that preserves core Violentmonkey behavior for install
 - Service-worker restart resilience is verified for popup/options/confirm workflows.
 - Script install/injection/update flows pass acceptance tests on Chrome and Edge.
 - Known parity gaps are documented and linked to follow-up issues.
+  - Reference: `MV3_PARITY_GAPS.md`
 - `#1934` is reduced to coordination status only, with implementation tracked in child issues.
 
 ## Guardrails
