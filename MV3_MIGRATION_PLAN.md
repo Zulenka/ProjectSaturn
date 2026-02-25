@@ -69,9 +69,9 @@ Exit criteria:
 ## M3: Messaging and Runtime Decoupling (Week 2)
 
 - [ ] Replace background-page direct access patterns with message/port-based RPC.
-- [ ] Migrate high-frequency `sendCmdDirectly` usage to async RPC where required.
+- [x] Migrate high-frequency `sendCmdDirectly` usage to async RPC where required.
 - [ ] Remove global assumptions that only work in persistent background pages.
-- [ ] Add retry and reconnection handling around worker wake/suspend cycles.
+- [x] Add retry and reconnection handling around worker wake/suspend cycles.
 
 Exit criteria:
 - Popup/options/confirm pages work after manual service worker restart.
