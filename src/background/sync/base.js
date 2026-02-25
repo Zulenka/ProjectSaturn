@@ -695,12 +695,17 @@ export function setConfig(config) {
 }
 
 let unregister;
+let authListenerTimer;
+const AUTH_LISTENER_TIMEOUT = 5 * 60e3;
 const IS_MV3 = extensionManifest.manifest_version === 3;
 const CAN_BLOCK_AUTH_REDIRECT = !IS_MV3;
 
 export async function openAuthPage(url, redirectUri) {
   unregister?.(); // otherwise our new tabId will be ignored
   const tabId = (await browser.tabs.create({ url })).id;
+  const onTabClosed = (closedTabId) => {
+    if (closedTabId === tabId) unregister?.();
+  };
   /**
    * @param {chrome.webRequest.WebResponseDetails} info
    * @returns {chrome.webRequest.BlockingResponse}
@@ -709,21 +714,26 @@ export async function openAuthPage(url, redirectUri) {
     const urlToCheck = changeInfo?.url || tab?.url || infoOrTabId?.url || '';
     const updatedTabId = typeof infoOrTabId === 'number' ? infoOrTabId : infoOrTabId?.tabId;
     if (updatedTabId !== tabId && updatedTabId !== -1) return;
-    if (getService().checkAuth?.(urlToCheck)) {
+    if (getService()?.checkAuth?.(urlToCheck)) {
       // In MV2 we cancel, in MV3 fallback we close tab on redirect detection.
-      browser.tabs.remove(tabId);
+      browser.tabs.remove(tabId).catch(noop);
       // If we unregister without setTimeout, API may ignore cancellation in MV2.
       setTimeout(unregister, 0);
       return CAN_BLOCK_AUTH_REDIRECT && { cancel: true };
     }
   };
-  unregister = CAN_BLOCK_AUTH_REDIRECT
-    ? () => {
+  unregister = () => {
+    clearTimeout(authListenerTimer);
+    browser.tabs.onRemoved.removeListener(onTabClosed);
+    if (CAN_BLOCK_AUTH_REDIRECT) {
       browser.webRequest.onBeforeRequest.removeListener(handler);
-    }
-    : () => {
+    } else {
       browser.tabs.onUpdated.removeListener(handler);
-    };
+    }
+    unregister = null;
+  };
+  browser.tabs.onRemoved.addListener(onTabClosed);
+  authListenerTimer = setTimeout(() => unregister?.(), AUTH_LISTENER_TIMEOUT);
   // Note: match pattern does not support port number
   // - In Chrome, the port number is ignored and the pattern still works
   // - In Firefox, the pattern is ignored and won't match any URL
