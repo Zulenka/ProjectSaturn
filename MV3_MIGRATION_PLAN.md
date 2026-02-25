@@ -42,6 +42,9 @@ Ship a Chromium MV3 build that preserves core Violentmonkey behavior for install
 
 ## M1: Scope and Architecture Lock (Week 1)
 
+Reference ADR:
+- `MV3_ARCHITECTURE_DECISIONS.md`
+
 - [ ] Finalize Chromium support matrix and parity target for first MV3 release.
 - [ ] Decide and document injection strategy (`userScripts` vs `scripting` orchestration).
 - [ ] Decide expected behavior for request-header and cookie handling under MV3 constraints.
