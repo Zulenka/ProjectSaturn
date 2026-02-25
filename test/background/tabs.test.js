@@ -1,4 +1,8 @@
-import { executeScriptInTab, registerUserScriptOnce } from '@/background/utils/tabs';
+import {
+  cleanupRegisteredUserScripts,
+  executeScriptInTab,
+  registerUserScriptOnce,
+} from '@/background/utils/tabs';
 import { browser as browserApi } from '@/common/consts';
 
 const { tabs } = browserApi;
@@ -224,6 +228,24 @@ test('registerUserScriptOnce returns false for unsupported URL', async () => {
   });
   expect(ok).toBe(false);
   expect(register).not.toHaveBeenCalled();
+});
+
+test('cleanupRegisteredUserScripts unregisters tracked IDs for a tab', async () => {
+  tabs.get = jest.fn(async () => ({ url: 'https://example.com/path' }));
+  const register = jest.fn(async () => {});
+  const unregister = jest.fn(async () => {});
+  chrome.userScripts = { register, unregister };
+  browser.userScripts = chrome.userScripts;
+  await registerUserScriptOnce(26, { code: '1', [kFrameId]: 0 });
+  await registerUserScriptOnce(26, { code: '2', [kFrameId]: 0 });
+  const firstId = register.mock.calls[0][0][0].id;
+  const secondId = register.mock.calls[1][0][0].id;
+  await cleanupRegisteredUserScripts(26, [firstId]);
+  expect(unregister).toHaveBeenNthCalledWith(1, { ids: [firstId] });
+  await cleanupRegisteredUserScripts(26);
+  expect(unregister).toHaveBeenNthCalledWith(2, { ids: [secondId] });
+  await cleanupRegisteredUserScripts(26);
+  expect(unregister).toHaveBeenCalledTimes(2);
 });
 
 test('executeScriptInTab prefers userScripts path when tryUserScripts is enabled', async () => {

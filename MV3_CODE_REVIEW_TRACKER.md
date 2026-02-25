@@ -40,6 +40,7 @@ Primary implementation guidance: `deep-research-report.md`.
   - Added regression coverage for offscreen fallback (`test/background/requests-offscreen.test.js`) and parser behavior (`test/common/webdav-xml.test.js`).
   - Began MV3 `userScripts.register` migration slice: added MV3 `userScripts` permission wiring in manifest transform + artifact checks.
   - Added top-frame one-shot `userScripts.register` helper (`registerUserScriptOnce`) with timed unregister fallback.
+  - Added per-tab `userScripts` cleanup path to unregister tracked one-shot registrations on tab completion/removal (timer fallback retained).
   - Wired content-realm preinject path to opt into `userScripts` on MV3 top frame while retaining `executeScript` fallback for parity.
   - Added regression coverage for `registerUserScriptOnce` success/fallback and `executeScriptInTab` `tryUserScripts` behavior (`test/background/tabs.test.js`).
   - Verified local MV3 build and contract checks pass (`build:all:mv3`, `smoke:mv3:test`, `check:mv3:*`); rollout gate GH issue query step is environment-network dependent.

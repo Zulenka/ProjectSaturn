@@ -44,6 +44,7 @@ export let injectableRe = /^(https?|file|ftps?):/;
 export let fileSchemeRequestable;
 const USERSCRIPT_UNREGISTER_DELAY = 30e3;
 let userScriptSeq = 0;
+const registeredUserScriptsByTab = new Map();
 let cookieStorePrefix;
 
 try {
@@ -186,7 +187,14 @@ addPublicCommands({
   },
 });
 
+tabsOnUpdated.addListener((id, info) => {
+  if (info?.status === 'complete') {
+    cleanupRegisteredUserScripts(id);
+  }
+});
+
 tabsOnRemoved.addListener((id) => {
+  cleanupRegisteredUserScripts(id);
   const openerId = openers[id];
   if (openerId >= 0) {
     sendTabCmd(openerId, 'TabClosed', id);
@@ -282,6 +290,36 @@ function getUserScriptsApi() {
   return chrome.userScripts || browser.userScripts;
 }
 
+function rememberRegisteredUserScript(tabId, id) {
+  let ids = registeredUserScriptsByTab.get(tabId);
+  if (!ids) {
+    ids = new Set();
+    registeredUserScriptsByTab.set(tabId, ids);
+  }
+  ids.add(id);
+}
+
+/**
+ * Unregisters tracked userscript IDs for a tab. If `ids` is omitted, all tracked IDs are removed.
+ */
+export async function cleanupRegisteredUserScripts(tabId, ids) {
+  const api = getUserScriptsApi();
+  const tracked = registeredUserScriptsByTab.get(tabId);
+  if (!api?.unregister || !tracked?.size) return;
+  const selected = ids?.filter(id => tracked.has(id));
+  const unregisterIds = selected || [...tracked];
+  if (!unregisterIds[0]) return;
+  unregisterIds.forEach(id => tracked.delete(id));
+  if (!tracked.size) registeredUserScriptsByTab.delete(tabId);
+  try {
+    await api.unregister({ ids: unregisterIds });
+  } catch (e) {
+    if (process.env.DEBUG) {
+      console.warn('userScripts.unregister cleanup failed', e);
+    }
+  }
+}
+
 function makeUserScriptMatch(url) {
   let parsed;
   try {
@@ -318,8 +356,9 @@ export async function registerUserScriptOnce(tabId, options) {
       allFrames: !!options.allFrames,
       persistAcrossSessions: false,
     }]);
+    rememberRegisteredUserScript(tabId, id);
     const timer = setTimeout(() => {
-      api.unregister?.({ ids: [id] }).catch(noop);
+      cleanupRegisteredUserScripts(tabId, [id]);
     }, USERSCRIPT_UNREGISTER_DELAY);
     timer?.unref?.();
     return true;
