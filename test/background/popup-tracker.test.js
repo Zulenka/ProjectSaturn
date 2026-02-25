@@ -263,7 +263,7 @@ describe('popup-tracker startup', () => {
     });
   });
 
-  test('InitPopup appends userScripts toggle guidance when MV3 health check reports disabled', async () => {
+  test('InitPopup shows concise userScripts guidance when MV3 health check reports disabled', async () => {
     jest.resetModules();
     process.env.DEBUG = '';
     const activeTab = { id: 46 };
@@ -307,8 +307,7 @@ describe('popup-tracker startup', () => {
     require('@/background/utils/popup-tracker');
     const [, data, failure] = await commands.InitPopup();
     expect(data.tab).toEqual(activeTab);
-    expect(failure[0]).toContain('failureReasonNoninjectable');
-    expect(failure[0]).toContain('Allow User Scripts is disabled');
+    expect(failure[0]).toBe('Allow User Scripts is disabled for Violentmonkey.');
     expect(getUserScriptsHealth).toHaveBeenCalled();
   });
 });

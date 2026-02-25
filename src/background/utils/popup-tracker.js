@@ -31,7 +31,7 @@ addOwnCommands({
         if (extensionManifest.manifest_version === 3) {
           const health = await getUserScriptsHealth?.();
           if (health?.state === 'disabled' && health.message) {
-            failure = [`${failure[0]}\n\n${health.message}`, INJECT_INTO];
+            failure = [health.message, INJECT_INTO];
           }
         }
       } else if (reset && (reset = cachedSetPopup[0][0])[SCRIPTS].length) {

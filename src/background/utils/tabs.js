@@ -336,11 +336,8 @@ function getUserScriptsApi() {
 function getUserScriptsEnableMessage() {
   const detailsPage = chrome.runtime?.id
     ? `chrome://extensions/?id=${chrome.runtime.id}`
-    : 'your browser extension details page';
-  return [
-    'Allow User Scripts is disabled for Violentmonkey.',
-    `Open ${detailsPage} (or opera://extensions), enable "Allow User Scripts", then reload this tab.`,
-  ].join(' ');
+    : 'chrome://extensions';
+  return `Enable "Allow User Scripts" for Violentmonkey in ${detailsPage} (or opera://extensions), then reload this tab.`;
 }
 
 async function probeUserScriptsHealth() {
