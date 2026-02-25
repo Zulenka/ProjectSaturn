@@ -23,6 +23,7 @@
     "check:mv3:runtime-contracts": "node scripts/check-mv3-runtime-contracts.js",
     "check:mv3:sync-provider-contracts": "node scripts/check-mv3-sync-provider-contracts.js",
     "check:mv3:release-contract": "node scripts/check-mv3-release-contract.js",
+    "report:mv3:triage": "bash scripts/mv3-regression-report.sh",
     "verify:artifacts:mv3": "node scripts/verify-build-artifacts.js mv3",
     "verify:artifacts:dual": "node scripts/verify-build-artifacts.js dual",
     "analyze": "cross-env RUN_ENV=analyze run-s build",

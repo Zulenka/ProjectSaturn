@@ -34,6 +34,7 @@ Track and post weekly counts:
 Example query:
 
 - `gh issue list --repo Zulenka/ProjectSaturn --search "is:open label:mv3 updated:>=2026-02-18"`
+- `yarn report:mv3:triage` (prints open/new/closed `mv3` counts and P0/P1 split)
 
 ## Rollout gating
 
