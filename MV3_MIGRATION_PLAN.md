@@ -141,9 +141,9 @@ Operational checklist:
 
 - [x] Add MV3 release assets and store upload paths.
 - [ ] Run staged rollout: canary -> beta -> stable.
-- [ ] Monitor issue intake and tag regressions with `mv3`.
-- [ ] Publish migration notes and known limitations.
-- [ ] Define rollback trigger and rollback procedure.
+- [x] Establish issue intake monitoring and `mv3` regression triage workflow.
+- [x] Publish migration notes and known limitations.
+- [x] Define rollback trigger and rollback procedure.
 
 Exit criteria:
 - MV3 reaches stable with no unresolved P0/P1 regressions.

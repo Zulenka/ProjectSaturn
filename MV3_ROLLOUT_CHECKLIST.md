@@ -10,15 +10,21 @@ Use this checklist when preparing Chromium MV3 releases.
   - [ ] `build:all`
   - [ ] `build:all:mv3`
   - [ ] `smoke:mv3:test`
-- [ ] Release workflow package targets confirmed:
-  - [ ] Chrome MV3
-  - [ ] Opera MV3
-  - [ ] Edge MV3
-  - [ ] Firefox MV2
-- [ ] Parity-gap document reviewed:
-  - [ ] `MV3_PARITY_GAPS.md`
-- [ ] Architecture decisions reviewed:
-  - [ ] `MV3_ARCHITECTURE_DECISIONS.md`
+- [x] Release workflow package targets confirmed:
+  - [x] Chrome MV3
+  - [x] Opera MV3
+  - [x] Edge MV3
+  - [x] Firefox MV2
+- [x] Parity-gap document reviewed:
+  - [x] `MV3_PARITY_GAPS.md`
+- [x] Architecture decisions reviewed:
+  - [x] `MV3_ARCHITECTURE_DECISIONS.md`
+
+Latest local verification (2026-02-25):
+
+- [x] `build:all`
+- [x] `build:all:mv3`
+- [x] `smoke:mv3:test`
 
 ## Staged rollout
 
@@ -28,10 +34,10 @@ Use this checklist when preparing Chromium MV3 releases.
 
 ## Runtime smoke checks (release candidate)
 
-- [ ] Popup opens and refreshes state after service worker restart.
-- [ ] `.user.js` install flow opens Confirm page from supported hosts.
-- [ ] GM request smoke scripts pass basic header/cookie scenarios.
-- [ ] Sync OAuth callback completes and closes auth tab.
+- [x] Popup opens and refreshes state after service worker restart.
+- [x] `.user.js` install flow opens Confirm page from supported hosts.
+- [x] GM request smoke scripts pass basic header/cookie scenarios.
+- [x] Sync OAuth callback completes and closes auth tab.
 
 ## Rollback triggers
 
