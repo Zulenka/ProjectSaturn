@@ -1,4 +1,5 @@
 import {
+  cleanupStaleUserScriptsAtStartup,
   cleanupRegisteredUserScripts,
   executeScriptInTab,
   getUserScriptsHealth,
@@ -247,6 +248,26 @@ test('cleanupRegisteredUserScripts unregisters tracked IDs for a tab', async () 
   expect(unregister).toHaveBeenNthCalledWith(2, { ids: [secondId] });
   await cleanupRegisteredUserScripts(26);
   expect(unregister).toHaveBeenCalledTimes(2);
+});
+
+test('cleanupStaleUserScriptsAtStartup unregisters stale one-shot scripts only once per API instance', async () => {
+  const getScripts = jest.fn(async () => ([
+    { id: 'vm-one-shot-1' },
+    { id: 'custom-keep' },
+    { id: 'vm-one-shot-2' },
+  ]));
+  const unregister = jest.fn(async () => {});
+  chrome.userScripts = {
+    getScripts,
+    unregister,
+  };
+  browser.userScripts = chrome.userScripts;
+  const first = await cleanupStaleUserScriptsAtStartup();
+  const second = await cleanupStaleUserScriptsAtStartup();
+  expect(first).toBe(true);
+  expect(second).toBe(true);
+  expect(getScripts).toHaveBeenCalledTimes(1);
+  expect(unregister).toHaveBeenCalledWith({ ids: ['vm-one-shot-1', 'vm-one-shot-2'] });
 });
 
 test('executeScriptInTab prefers userScripts path when tryUserScripts is enabled', async () => {

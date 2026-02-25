@@ -114,4 +114,26 @@ describe('icon menu handlers', () => {
     expect(contextMenus.removeAll).toHaveBeenCalled();
     expect(contextMenus.create).toHaveBeenCalled();
   });
+
+  test('context menu init retries duplicate id creation by removing stale entries', async () => {
+    jest.resetModules();
+    const { contextMenus } = setupBrowserApis();
+    const duplicateId = 'SkipScripts';
+    let injectedDuplicate = false;
+    contextMenus.create.mockImplementation((opts, cb) => {
+      if (!injectedDuplicate && opts.id === duplicateId) {
+        injectedDuplicate = true;
+        global.chrome.runtime.lastError = { message: `Cannot create item with duplicate id ${duplicateId}` };
+        cb?.();
+        global.chrome.runtime.lastError = null;
+        return;
+      }
+      cb?.();
+    });
+    contextMenus.remove = jest.fn((id, cb) => cb?.());
+    expect(() => require('@/background/utils/icon')).not.toThrow();
+    await new Promise(resolve => setTimeout(resolve, 25));
+    expect(contextMenus.remove).toHaveBeenCalledWith(duplicateId, expect.any(Function));
+    expect(contextMenus.create.mock.calls.filter(([opts]) => opts.id === duplicateId)).toHaveLength(2);
+  });
 });

@@ -33,12 +33,14 @@ Use it as the source-of-truth companion for MV3 rollout and release notes.
   - Current behavior: hook registration is guarded; popup continues without prefetch optimization.
 - Direct background-page command path is disabled in MV3.
   - Current behavior: command routing uses runtime messaging fallback.
+- Toolbar context-menu ids can persist across worker restarts.
+  - Current behavior: menu creation retries duplicate-id failures by removing stale entries first.
 
 ## Injection Runtime
 
 - MV3 top-frame injection is migrating to `chrome.userScripts.register`.
   - Current behavior: top-frame content/probe paths use `tryUserScripts` and fall back to execute-style APIs when unavailable.
-  - Current behavior: one-shot registrations are unregistered via bounded cleanup timer.
+  - Current behavior: one-shot registrations are unregistered via bounded cleanup timer and startup stale-registration cleanup.
 - Subframe and legacy-path parity is still partially execute-style.
   - Current behavior: frame-scoped injection fallback remains active where `userScripts` parity is not fully implemented.
 

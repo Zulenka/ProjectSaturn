@@ -45,9 +45,12 @@ export let injectableRe = /^(https?|file|ftps?):/;
 export let fileSchemeRequestable;
 const USERSCRIPT_UNREGISTER_DELAY = 30e3;
 const USERSCRIPT_HEALTH_TTL = 60e3;
+const USERSCRIPT_ONE_SHOT_ID_PREFIX = 'vm-one-shot-';
 const USERSCRIPT_DISABLED_RE = /allow user scripts|user scripts? (?:is|are)? ?(?:disabled|not enabled|not allowed)|not been granted permission|access to user scripts|cannot access user scripts/i;
 let userScriptSeq = 0;
 const registeredUserScriptsByTab = new Map();
+let staleUserScriptsCleanupApi;
+let staleUserScriptsCleanupPromise;
 let warnedMissingUserScriptsApi;
 let warnedMissingUserScriptsExecute;
 let cookieStorePrefix;
@@ -431,6 +434,42 @@ function rememberRegisteredUserScript(tabId, id) {
   ids.add(id);
 }
 
+const isOneShotUserScriptId = id => (
+  typeof id === 'string' && id.startsWith(USERSCRIPT_ONE_SHOT_ID_PREFIX)
+);
+
+/**
+ * Cleans up one-shot userscript registrations that can outlive a service-worker restart.
+ * Runs once per userscripts API instance by default.
+ */
+export async function cleanupStaleUserScriptsAtStartup(force) {
+  const api = getUserScriptsApi();
+  if (!api?.getScripts || !api?.unregister) return false;
+  if (!force
+  && staleUserScriptsCleanupApi === api
+  && staleUserScriptsCleanupPromise) {
+    return staleUserScriptsCleanupPromise;
+  }
+  staleUserScriptsCleanupApi = api;
+  staleUserScriptsCleanupPromise = (async () => {
+    try {
+      const scripts = await api.getScripts();
+      const staleIds = scripts
+        ?.map(script => script?.id)
+        .filter(isOneShotUserScriptId) || [];
+      if (!staleIds[0]) return false;
+      await api.unregister({ ids: staleIds });
+      return true;
+    } catch (e) {
+      if (process.env.DEBUG) {
+        console.warn('MV3 userscripts stale one-shot cleanup failed', e);
+      }
+      return false;
+    }
+  })();
+  return staleUserScriptsCleanupPromise;
+}
+
 /**
  * Unregisters tracked userscript IDs for a tab. If `ids` is omitted, all tracked IDs are removed.
  */
@@ -473,12 +512,13 @@ function makeUserScriptMatch(url) {
 export async function registerUserScriptOnce(tabId, options) {
   const api = getUserScriptsApi();
   if (!api?.register || !options?.code || options[kFrameId] > 0) return false;
+  await cleanupStaleUserScriptsAtStartup();
   const tab = browser.tabs.get
     ? await browser.tabs.get(tabId).catch(noop)
     : null;
   const match = makeUserScriptMatch(getTabUrl(tab || {}));
   if (!match) return false;
-  const id = `vm-one-shot-${Date.now()}-${tabId}-${++userScriptSeq}`;
+  const id = `${USERSCRIPT_ONE_SHOT_ID_PREFIX}${Date.now()}-${tabId}-${++userScriptSeq}`;
   try {
     await api.register([{
       id,
@@ -528,5 +568,6 @@ export async function reloadTabForScript(script) {
 }
 
 if (extensionManifest.manifest_version === 3) {
+  void cleanupStaleUserScriptsAtStartup();
   void getUserScriptsHealth(true);
 }

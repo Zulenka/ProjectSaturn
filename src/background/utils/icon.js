@@ -53,6 +53,7 @@ export const badges = {};
 const KEY_SHOW_BADGE = 'showBadge';
 const KEY_BADGE_COLOR = 'badgeColor';
 const KEY_BADGE_COLOR_BLOCKED = 'badgeColorBlocked';
+const DUPLICATE_MENU_ID_RE = /duplicate id/i;
 const actionManifest = extensionManifest[BROWSER_ACTION] || {};
 const titleBlacklisted = i18n('failureReasonBlacklisted');
 const titleDefault = actionManifest.default_title || extensionManifest.name;
@@ -121,15 +122,31 @@ init.then(async () => {
     });
     const addToIcon = (id, title, opts) => (
       new Promise(resolve => {
-        contextMenus.create({
+        let retried;
+        const details = {
           contexts: [BROWSER_ACTION],
           id,
           title,
           ...opts,
-        }, () => {
-          ignoreChromeErrors();
-          resolve();
-        });
+        };
+        const create = () => {
+          contextMenus.create(details, () => {
+            const err = chrome.runtime.lastError;
+            if (err && !retried && DUPLICATE_MENU_ID_RE.test(err.message || '')
+            && contextMenus.remove) {
+              retried = true;
+              contextMenus.remove(id, () => {
+                ignoreChromeErrors();
+                create();
+              });
+              return;
+            }
+            // Read and clear runtime.lastError in all cases to suppress console noise.
+            if (err) ignoreChromeErrors();
+            resolve();
+          });
+        };
+        create();
       })
     );
     const badgeChild = { parentId: KEY_SHOW_BADGE, type: 'radio' };
