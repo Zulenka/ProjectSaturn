@@ -43,7 +43,7 @@ export function injectPageSandbox(data) {
   const handshakeId = safeGetUniqId();
   const contentId = safeGetUniqId();
   const webId = safeGetUniqId();
-  nonce = data.nonce;
+  nonce = data.nonce || getPageNonce();
   if (IS_FIREFOX) {
     // In FF, content scripts running in a same-origin frame cannot directly call parent's functions
     window::on(VAULT_WRITER, evt => {
@@ -126,6 +126,11 @@ export function injectPageSandbox(data) {
     bindEvents(contentId, webId, bridge);
     fireBridgeEvent(`${handshakeId}*`, [webId, contentId]);
   }
+}
+
+function getPageNonce() {
+  const node = document::querySelector('script[nonce],style[nonce],link[nonce]');
+  return node?.nonce || node?.getAttribute?.('nonce') || '';
 }
 
 /**

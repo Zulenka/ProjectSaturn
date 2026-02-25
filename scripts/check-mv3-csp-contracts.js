@@ -44,6 +44,11 @@ function run() {
     /const\s+forceContentByMeta\s*=\s*!isXml\s*&&\s*hasStrictMetaCsp\(\);[\s\S]*?if\s*\(isXml\s*\|\|\s*data\[FORCE_CONTENT\]\s*\|\|\s*forceContentByMeta\)/,
     'inject: strict meta CSP must force content-realm before page handshake',
   );
+  assertContains(
+    injectContent,
+    /nonce\s*=\s*data\.nonce\s*\|\|\s*getPageNonce\(\);/,
+    'inject: page handshake must fallback to DOM nonce when header nonce is unavailable',
+  );
 
   assertContains(
     preinject,
