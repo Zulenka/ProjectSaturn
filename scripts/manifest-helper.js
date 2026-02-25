@@ -166,20 +166,15 @@ class ListBackgroundScriptsPlugin {
       const scripts = bgEntry.chunks.flatMap(c => [...c.files]);
       const bgScript = scripts.find(file => file.endsWith('.js')) || scripts[0];
       const isMv3 = manifest.manifest_version === 3;
-      const changed = isMv3
-        ? manifest.background.service_worker !== bgScript || manifest.background.scripts
-        : `${manifest.background.scripts}` !== `${scripts}`;
-      if (changed) {
-        if (isMv3) {
-          manifest.background.service_worker = bgScript;
-          delete manifest.background.scripts;
-        } else {
-          manifest.background.scripts = scripts;
-        }
-        await fs.writeFile(path,
-          JSON.stringify(manifest, null, this.minify ? 0 : 2),
-          { encoding: 'utf8' });
+      if (isMv3) {
+        manifest.background.service_worker = bgScript;
+        delete manifest.background.scripts;
+      } else {
+        manifest.background.scripts = scripts;
       }
+      await fs.writeFile(path,
+        JSON.stringify(manifest, null, this.minify ? 0 : 2),
+        { encoding: 'utf8' });
     });
   }
 }
