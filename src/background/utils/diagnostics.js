@@ -244,6 +244,15 @@ function getStats(entries) {
   };
 }
 
+function getExtensionBuildInfo() {
+  return {
+    manifestVersion: extensionManifest.manifest_version,
+    name: extensionManifest.name,
+    version: process.env.VM_VER,
+    buildId: process.env.VM_BUILD_ID || '',
+  };
+}
+
 function getMeta(entryCount = state.entries.length) {
   return {
     dropped: state.dropped,
@@ -251,11 +260,7 @@ function getMeta(entryCount = state.entries.length) {
     sessionId: state.sessionId,
     sessionStartedAt: new Date(state.startedAt).toISOString(),
     schemaVersion: DIAGNOSTICS_SCHEMA_VERSION,
-    extension: {
-      manifestVersion: extensionManifest.manifest_version,
-      name: extensionManifest.name,
-      version: process.env.VM_VER,
-    },
+    extension: getExtensionBuildInfo(),
   };
 }
 
@@ -340,6 +345,7 @@ async function getMv3RuntimeHealth({ force } = {}) {
   }
   return {
     checkedAt: new Date().toISOString(),
+    extension: getExtensionBuildInfo(),
     manifestVersion: extensionManifest.manifest_version,
     minimumChromeVersion: extensionManifest.minimum_chrome_version || '',
     userscripts,

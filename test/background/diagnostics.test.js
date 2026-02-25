@@ -80,6 +80,7 @@ describe('diagnostics logging backend', () => {
     expect(exported.mimeType).toBe('application/json');
     const parsed = JSON.parse(exported.content);
     expect(parsed.meta.extension.version).toBe(process.env.VM_VER);
+    expect(parsed.meta.extension.buildId).toBe(process.env.VM_BUILD_ID || '');
     expect(parsed.meta.schemaVersion).toBe(1);
     expect(parsed.stats.total).toBe(parsed.entries.length);
   });
@@ -115,6 +116,8 @@ describe('diagnostics logging backend', () => {
     const { commands } = require('@/background/utils/init');
     const health = await commands.DiagnosticsGetMv3Health({ force: true });
     expect(health.manifestVersion).toBe(3);
+    expect(health.extension.version).toBe(process.env.VM_VER);
+    expect(health.extension.buildId).toBe(process.env.VM_BUILD_ID || '');
     expect(health.userscripts.state).toBe('ok');
     expect(health.offscreen.contextCount).toBe(1);
     expect(health.dnr.sessionRuleCount).toBe(1);

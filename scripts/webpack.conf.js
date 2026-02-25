@@ -1,4 +1,5 @@
 const webpack = require('webpack');
+const { execSync } = require('child_process');
 const { ListBackgroundScriptsPlugin } = require('./manifest-helper');
 const { addWrapperWithGlobals, getCodeMirrorThemes } = require('./webpack-util');
 const ProtectWebpackBootstrapPlugin = require('./webpack-protect-bootstrap-plugin');
@@ -12,12 +13,26 @@ const VAULT_ID = 'VAULT_ID';
 const PAGE_MODE_HANDSHAKE = 'PAGE_MODE_HANDSHAKE';
 const VM_VER = getVersion();
 
+function getBuildId() {
+  const fromEnv = `${process.env.VM_BUILD_ID || process.env.GIT_DESCRIBE || ''}`.trim();
+  if (fromEnv) return fromEnv;
+  try {
+    return execSync('git rev-parse --short HEAD', {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).toString().trim();
+  } catch (e) {
+    return '';
+  }
+}
+const VM_BUILD_ID = getBuildId();
+
 global.localStorage = {}; // workaround for node 25 and HtmlWebpackPlugin's `...global`
 
 configLoader
   // Default values
   .add({
     DEBUG: false,
+    VM_BUILD_ID: '',
   })
   // Load from `./.env`
   .envFile()
@@ -26,6 +41,7 @@ configLoader
   // Override values
   .add({
     VM_VER,
+    VM_BUILD_ID,
   });
 
 const pickEnvs = (items) => {
@@ -38,6 +54,7 @@ const defsObj = {
   ...pickEnvs([
     'DEBUG',
     'VM_VER',
+    'VM_BUILD_ID',
     'SYNC_GOOGLE_DESKTOP_ID',
     'SYNC_GOOGLE_DESKTOP_SECRET',
     'SYNC_ONEDRIVE_CLIENT_ID',

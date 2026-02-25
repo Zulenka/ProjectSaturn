@@ -74,11 +74,13 @@ Expected:
    - `userscripts.state`
    - `dnr.hasInstallInterceptRule`
    - `offscreen.contextCount`
+   - `extension.buildId`
 
 Expected:
 - `userscripts.state` is `ok` after enabling required browser userscripts permission.
 - DNR install-intercept rule is present in MV3 session rules.
 - Offscreen context count is non-null and stable during active MV3 flows.
+- `extension.buildId` matches the intended beta commit/tag under test.
 
 ## Console Warnings to Capture
 
