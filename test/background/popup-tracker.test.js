@@ -3,7 +3,7 @@ const getListenerApi = () => ({
   removeListener: jest.fn(),
 });
 
-function setupBrowserApis({ throwPrefetchHook } = {}) {
+function setupBrowserApis({ throwPrefetchHook, activeTab } = {}) {
   const tabsOnUpdated = getListenerApi();
   const tabsOnRemoved = getListenerApi();
   const tabsOnCreated = getListenerApi();
@@ -13,7 +13,7 @@ function setupBrowserApis({ throwPrefetchHook } = {}) {
   webRequestOnBeforeRequest.addListener.mockImplementation(() => {
     if (throwPrefetchHook) throw new Error('prefetch hook unsupported');
   });
-  global.browser.tabs.query = jest.fn(async () => []);
+  global.browser.tabs.query = jest.fn(async () => activeTab ? [activeTab] : []);
   global.browser.tabs.get = jest.fn(async id => ({ id, url: 'https://example.com/' }));
   global.browser.tabs.update = jest.fn(async () => ({}));
   global.browser.tabs.create = jest.fn(async () => ({ id: 55 }));
@@ -65,5 +65,46 @@ describe('popup-tracker startup', () => {
       expect.any(Function),
       expect.objectContaining({ types: ['main_frame'] }),
     );
+  });
+
+  test('InitPopup reports restarted state after worker clears badge inject state', async () => {
+    jest.resetModules();
+    process.env.DEBUG = '';
+    const activeTab = { id: 42, url: 'https://example.com/' };
+    setupBrowserApis({ activeTab });
+    const cacheState = {};
+    const cacheMock = {
+      pop: jest.fn(() => undefined),
+      get: jest.fn(key => cacheState[key]),
+      put: jest.fn((key, value) => ((cacheState[key] = value), value)),
+    };
+    const badges = {};
+    const getFailureReason = jest.fn(() => ['', IS_APPLIED]);
+    const getScriptsByURL = jest.fn(() => ({ 11: 1 }));
+    const getData = jest.fn(async () => ({ [SCRIPTS]: [{ id: 11 }], menus: {} }));
+    const executeScriptInTab = jest.fn(async () => [true]);
+    jest.doMock('@/background/utils/cache', () => ({
+      __esModule: true,
+      default: cacheMock,
+    }));
+    jest.doMock('@/background/utils/icon', () => ({
+      badges,
+      getFailureReason,
+    }));
+    jest.doMock('@/background/utils/db', () => ({
+      getData,
+      getScriptsByURL,
+    }));
+    jest.doMock('@/background/utils/tabs', () => ({
+      executeScriptInTab,
+    }));
+    const { commands } = require('@/background/utils/init');
+    commands.GetTabDomain = jest.fn(() => ({ host: 'example.com', domain: 'example.com' }));
+    require('@/background/utils/popup-tracker');
+    const [cachedSetPopup, data, failure] = await commands.InitPopup();
+    expect(failure[0]).toBe('failureReasonRestarted');
+    expect(cachedSetPopup[0][0][INJECT_INTO]).toBe('off');
+    expect(data.tab).toEqual(activeTab);
+    expect(executeScriptInTab).toHaveBeenCalledWith(42, { code: '1', [RUN_AT]: 'document_start' });
   });
 });

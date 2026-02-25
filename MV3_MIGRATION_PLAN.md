@@ -81,14 +81,14 @@ Exit criteria:
 - [x] Remove or isolate background DOM-dependent features (clipboard, icon rasterization, similar).
 - [ ] Introduce offscreen document path only where required.
 - [x] Ensure no hidden dependency on `document` lifecycle in background runtime.
-- [ ] Add smoke tests for worker suspend/resume continuity.
+- [x] Add smoke tests for worker suspend/resume continuity.
 
 Exit criteria:
 - Background logic runs safely in service worker context with no DOM exceptions.
 
 ## M5: Injection Engine Port (Weeks 3-4)
 
-- [ ] Replace MV2 `tabs.executeScript` usage in background injection paths.
+- [x] Replace MV2 `tabs.executeScript` usage in background injection paths.
 - [ ] Rework preinject timing logic that currently depends on MV2 request hooks.
 - [ ] Preserve `run_at`, frame handling, realm decisions, and cache behavior.
 - [ ] Validate with strict CSP sites and multi-frame pages.
@@ -163,7 +163,7 @@ Exit criteria:
 - [ ] Install `.user.js` from supported hosts.
 - [ ] Injection correctness in top frame and nested iframe.
 - [ ] `run_at` behavior (`start`, `end`, `idle`) parity checks.
-- [ ] Popup load and menu actions after service worker restart.
+- [x] Popup load and menu actions after service worker restart.
 - [ ] GM request smoke scripts (headers/cookies/basic auth scenarios).
 - [ ] Sync OAuth callback and first sync transaction.
 - [ ] Update-check and update-apply flow.
@@ -224,7 +224,7 @@ Definition of done:
 Title: `Injection Engine: MV3 API Port and Behavior Parity`  
 Labels: `enhancement`, `injection`, `mv3`, `P0`  
 Body checklist:
-- [ ] Replace MV2 injection API usage with MV3-compatible APIs.
+- [x] Replace MV2 injection API usage with MV3-compatible APIs.
 - [ ] Preserve realm and frame behavior.
 - [ ] Validate strict CSP and iframe-heavy scenarios.
 Definition of done:

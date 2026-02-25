@@ -2,6 +2,7 @@ import { executeScriptInTab } from '@/background/utils/tabs';
 import { browser as browserApi } from '@/common/consts';
 
 const { tabs } = browserApi;
+const browser = global.browser;
 
 let oldTabsExecuteScript;
 let oldBrowserScripting;
@@ -10,7 +11,7 @@ let oldRuntimeLastError;
 
 beforeEach(() => {
   oldTabsExecuteScript = tabs.executeScript;
-  oldBrowserScripting = browserApi.scripting;
+  oldBrowserScripting = browser.scripting;
   oldChromeScripting = chrome.scripting;
   oldRuntimeLastError = chrome.runtime.lastError;
   chrome.runtime.lastError = null;
@@ -18,7 +19,7 @@ beforeEach(() => {
 
 afterEach(() => {
   tabs.executeScript = oldTabsExecuteScript;
-  browserApi.scripting = oldBrowserScripting;
+  browser.scripting = oldBrowserScripting;
   chrome.scripting = oldChromeScripting;
   chrome.runtime.lastError = oldRuntimeLastError;
 });
@@ -34,7 +35,7 @@ test('executeScriptInTab uses tabs.executeScript when available', async () => {
 
 test('executeScriptInTab maps callback scripting.executeScript results', async () => {
   tabs.executeScript = undefined;
-  browserApi.scripting = undefined;
+  browser.scripting = undefined;
   chrome.scripting = {
     executeScript: jest.fn((details, cb) => cb([
       { result: 'a' },
@@ -48,7 +49,7 @@ test('executeScriptInTab maps callback scripting.executeScript results', async (
 
 test('executeScriptInTab supports callback-style chrome.scripting.executeScript fallback', async () => {
   tabs.executeScript = undefined;
-  browserApi.scripting = undefined;
+  browser.scripting = undefined;
   chrome.scripting = {
     executeScript: jest.fn((details, cb) => cb([{ result: 7 }])),
   };
@@ -59,7 +60,7 @@ test('executeScriptInTab supports callback-style chrome.scripting.executeScript 
 
 test('executeScriptInTab rejects when callback-style chrome.scripting reports runtime error', async () => {
   tabs.executeScript = undefined;
-  browserApi.scripting = undefined;
+  browser.scripting = undefined;
   chrome.scripting = {
     executeScript: jest.fn((details, cb) => {
       chrome.runtime.lastError = { message: 'boom' };
@@ -72,7 +73,7 @@ test('executeScriptInTab rejects when callback-style chrome.scripting reports ru
 
 test('executeScriptInTab falls back to callback API if promise-like API throws', async () => {
   tabs.executeScript = undefined;
-  browserApi.scripting = {
+  browser.scripting = {
     executeScript: jest.fn(() => {
       throw new Error('bad promise api');
     }),
@@ -81,7 +82,60 @@ test('executeScriptInTab falls back to callback API if promise-like API throws',
     executeScript: jest.fn((details, cb) => cb([{ result: 9 }])),
   };
   const res = await executeScriptInTab(16, { code: '4 + 5' });
-  expect(browserApi.scripting.executeScript).toHaveBeenCalled();
+  expect(browser.scripting.executeScript).toHaveBeenCalled();
   expect(chrome.scripting.executeScript).toHaveBeenCalled();
   expect(res).toEqual([9]);
+});
+
+test('executeScriptInTab maps MV3 frame and runAt options to scripting target details', async () => {
+  tabs.executeScript = undefined;
+  browser.scripting = undefined;
+  let details;
+  chrome.scripting = {
+    executeScript: jest.fn((injectedDetails, cb) => {
+      details = injectedDetails;
+      cb([{ result: true }]);
+    }),
+  };
+  const res = await executeScriptInTab(17, {
+    code: '1',
+    [kFrameId]: 7,
+    [RUN_AT]: 'document_start',
+  });
+  expect(details).toEqual(expect.objectContaining({
+    target: { tabId: 17, frameIds: [7] },
+    injectImmediately: true,
+    args: ['1'],
+    func: expect.any(Function),
+  }));
+  expect(res).toEqual([true]);
+});
+
+test('executeScriptInTab maps MV3 allFrames and files options', async () => {
+  tabs.executeScript = undefined;
+  browser.scripting = undefined;
+  let details;
+  chrome.scripting = {
+    executeScript: jest.fn((injectedDetails, cb) => {
+      details = injectedDetails;
+      cb([{ result: 'ok' }]);
+    }),
+  };
+  const res = await executeScriptInTab(18, {
+    allFrames: true,
+    files: ['a.js', 'b.js'],
+  });
+  expect(details).toEqual(expect.objectContaining({
+    target: { tabId: 18, allFrames: true },
+    files: ['a.js', 'b.js'],
+  }));
+  expect(res).toEqual(['ok']);
+});
+
+test('executeScriptInTab rejects when no compatible injection API exists', async () => {
+  tabs.executeScript = undefined;
+  browser.scripting = undefined;
+  chrome.scripting = undefined;
+  await expect(executeScriptInTab(19, { code: '1' }))
+    .rejects.toThrow('tabs.executeScript and scripting.executeScript are unavailable');
 });
