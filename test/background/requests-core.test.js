@@ -6,6 +6,7 @@ const getListenerApi = () => ({
 function setupWebRequestApis() {
   const onBeforeSendHeaders = getListenerApi();
   const onHeadersReceived = getListenerApi();
+  const setCookie = jest.fn();
   global.browser.webRequest = {
     OnBeforeSendHeadersOptions: {
       EXTRA_HEADERS: 'extraHeaders',
@@ -13,7 +14,11 @@ function setupWebRequestApis() {
     onBeforeSendHeaders,
     onHeadersReceived,
   };
-  return { onBeforeSendHeaders, onHeadersReceived };
+  global.browser.cookies = {
+    ...(global.browser.cookies || {}),
+    set: setCookie,
+  };
+  return { onBeforeSendHeaders, onHeadersReceived, setCookie };
 }
 
 function loadRequestsCore(manifestVersion) {
@@ -99,5 +104,88 @@ describe('requests-core toggleHeaderInjector', () => {
     );
 
     warn.mockRestore();
+  });
+
+  test('merges cookie and auth header injections for MV2 request flows', () => {
+    const { onBeforeSendHeaders } = setupWebRequestApis();
+    const { toggleHeaderInjector, requests, VM_VERIFY, kCookie } = loadRequestsCore(2);
+    const reqId = 'req-cookie-auth';
+    requests[reqId] = { [kCookie]: true };
+    toggleHeaderInjector(reqId, {
+      cookie: { name: kCookie, value: 'session=2' },
+      authorization: { name: 'authorization', value: 'Basic Zm9vOmJhcg==' },
+    });
+    const listener = onBeforeSendHeaders.addListener.mock.calls[0][0];
+    const result = listener({
+      requestId: 'core-cookie-auth',
+      url: 'https://example.com/data',
+      requestHeaders: [
+        { name: VM_VERIFY, value: reqId },
+        { name: 'Cookie', value: 'session=1' },
+      ],
+    });
+    expect(result.requestHeaders).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: kCookie, value: 'session=1; session=2' }),
+      expect.objectContaining({ name: 'authorization', value: 'Basic Zm9vOmJhcg==' }),
+    ]));
+  });
+
+  test('drops Set-Cookie response headers for anonymous MV2 requests', () => {
+    const { onHeadersReceived } = setupWebRequestApis();
+    const {
+      toggleHeaderInjector, requests, verify, kSetCookie,
+    } = loadRequestsCore(2);
+    const reqId = 'req-anon';
+    const coreId = 'core-anon';
+    requests[reqId] = { [kSetCookie]: false };
+    verify[coreId] = reqId;
+    toggleHeaderInjector(reqId, {});
+    const listener = onHeadersReceived.addListener.mock.calls[0][0];
+    const responseHeaders = [
+      { name: 'Set-Cookie', value: 'sid=abc; Path=/' },
+      { name: 'Content-Type', value: 'text/plain' },
+    ];
+    const result = listener({
+      requestId: coreId,
+      url: 'https://example.com/data',
+      responseHeaders,
+    });
+    expect(result.responseHeaders).toEqual([
+      { name: 'Content-Type', value: 'text/plain' },
+    ]);
+    expect(requests[reqId].responseHeaders).toContain('Set-Cookie: sid=abc; Path=/');
+  });
+
+  test('replays Set-Cookie into custom store in MV3 non-blocking mode', () => {
+    const { onHeadersReceived, setCookie } = setupWebRequestApis();
+    const {
+      toggleHeaderInjector, requests, verify, kSetCookie,
+    } = loadRequestsCore(3);
+    const reqId = 'req-store';
+    const coreId = 'core-store';
+    requests[reqId] = {
+      [kSetCookie]: true,
+      storeId: 'firefox-container-1',
+    };
+    verify[coreId] = reqId;
+    toggleHeaderInjector(reqId, {});
+    const listener = onHeadersReceived.addListener.mock.calls[0][0];
+    const result = listener({
+      requestId: coreId,
+      url: 'https://example.com/data',
+      responseHeaders: [
+        { name: 'Set-Cookie', value: 'sid=abc; Path=/; SameSite=None; Secure' },
+      ],
+    });
+    expect(result).toBeUndefined();
+    expect(setCookie).toHaveBeenCalledWith(expect.objectContaining({
+      url: 'https://example.com/data',
+      name: 'sid',
+      value: 'abc',
+      path: '/',
+      sameSite: 'no_restriction',
+      secure: true,
+      storeId: 'firefox-container-1',
+    }));
   });
 });

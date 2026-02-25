@@ -101,7 +101,7 @@ Exit criteria:
 - [x] Replace blocking request mutation approach with MV3-compatible strategy.
 - [x] Define and document unavoidable parity differences.
 - [x] Port request header/cookie handling with explicit tests.
-- [ ] Validate GM request flows against real-world scripts.
+- [x] Validate GM request flows against real-world scripts.
 
 Exit criteria:
 - GM request behavior is deterministic, documented, and tested for supported scenarios.
@@ -164,7 +164,7 @@ Exit criteria:
 - [ ] Injection correctness in top frame and nested iframe.
 - [ ] `run_at` behavior (`start`, `end`, `idle`) parity checks.
 - [x] Popup load and menu actions after service worker restart.
-- [ ] GM request smoke scripts (headers/cookies/basic auth scenarios).
+- [x] GM request smoke scripts (headers/cookies/basic auth scenarios).
 - [ ] Sync OAuth callback and first sync transaction.
 - [ ] Update-check and update-apply flow.
 - [ ] Export/import basic flow.

@@ -197,7 +197,7 @@ function setCookieInStore(headerValue, storeId, url) {
     while ((m = SET_COOKIE_ATTR_RE.exec(optStr))) {
       opt[m[1].toLowerCase()] = m[3];
     }
-    const sameSite = opt.sameSite?.toLowerCase();
+    const sameSite = opt.samesite?.toLowerCase();
     browser.cookies.set({
       url,
       name,
