@@ -28,7 +28,7 @@ Primary implementation guidance: `deep-research-report.md`.
 | P1 | Replace blocking/interception-dependent request logic with DNR ruleset orchestration (`static` + `dynamic/session` where needed), including rule lifecycle and priority strategy. | CR-MV3-01 | In progress |
 | P2 | Introduce offscreen-backed worker flow for DOM/network-adjacent tasks required by WebDAV + `GM_xmlhttpRequest` support paths; enforce runtime message boundaries. | CR-MV3-01 | In progress |
 | P3 | Replace imperative tab/script injection wrapper path with `chrome.userScripts.register` architecture, including update/unregister lifecycle and run-at/frame parity verification. | CR-MV3-02 | In progress |
-| P4 | Hardening pass: permissions/CSP/WAR minimization, service-worker lifecycle resilience tests, and cold-start validation with DevTools closed. | CR-MV3-01, CR-MV3-02 | Open |
+| P4 | Hardening pass: permissions/CSP/WAR minimization, service-worker lifecycle resilience tests, and cold-start validation with DevTools closed. | CR-MV3-01, CR-MV3-02 | In progress |
 
 ## Progress Log
 
@@ -70,6 +70,11 @@ Primary implementation guidance: `deep-research-report.md`.
   - Added dedicated offscreen boundary regression coverage (`test/background/offscreen.test.js`) and included it in MV3 smoke unit suite.
   - Added an MV3 runtime health snapshot command (`DiagnosticsGetMv3Health`) plus settings UI panel to report userscripts capability state, DNR session-rule presence, and offscreen context visibility for Chrome/Opera retest diagnostics.
   - Re-ran MV3 validation gates after hardening (`smoke:mv3:test`, `build:all:mv3`, `verify:artifacts:mv3`) with passing status.
+  - Replaced remaining `javascript:` install-intercept redirect fallback with `about:blank` in `tab-redirector` to avoid strict CSP console violations during `.user.js` interception.
+  - Replaced iframe bootstrap `src: 'javascript:void 0'` with `about:blank` in injected content runtime to reduce CSP-triggered script URL violations in strict pages.
+  - Enabled MV3 `onHeadersReceived` CSP detection listener path so strict response CSP can force content-realm injection earlier in the preinject flow.
+  - Added regression coverage for MV3 CSP detector listener wiring and non-`javascript:` MV2 install intercept redirect behavior.
+  - Re-ran MV3 smoke pipeline after CSP hardening updates (`smoke:mv3`) with passing status.
 
 ## Evidence Pointers
 

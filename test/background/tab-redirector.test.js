@@ -85,6 +85,20 @@ describe('tab-redirector listener mode', () => {
     expect(dnrUpdateSessionRules).not.toHaveBeenCalled();
   });
 
+  test('MV2 blocking install interception uses about:blank redirect (no javascript: URL)', () => {
+    const { webRequestOnBeforeRequest } = setupBrowserApis();
+    loadTabRedirector(2);
+    const call = findUserJsBlockingListener(webRequestOnBeforeRequest.addListener.mock.calls);
+    expect(call).toBeTruthy();
+    const [listener] = call;
+    const result = listener({
+      method: 'GET',
+      tabId: 7,
+      url: 'https://example.com/sample.user.js',
+    });
+    expect(result).toEqual({ redirectUrl: 'about:blank' });
+  });
+
   test('MV3 fallback opens Confirm page for valid user script URL', async () => {
     jest.resetModules();
     const { tabsOnUpdated } = setupBrowserApis();

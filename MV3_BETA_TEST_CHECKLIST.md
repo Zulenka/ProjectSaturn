@@ -24,6 +24,7 @@ Expected:
 - No `Illegal invocation` errors related to `StorageArea`.
 - No userscript execution loss on first load or reload.
 - No `EvalError`/`unsafe-eval` CSP violations from extension injection paths.
+- No CSP violations referencing `javascript:` script URLs from extension install/injection fallback paths.
 
 ## `.user.js` Install Intercept
 

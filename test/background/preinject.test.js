@@ -50,6 +50,7 @@ function setupBrowserApis() {
   return {
     tabsOnUpdated,
     webRequestOnSendHeaders,
+    webRequestOnHeadersReceived,
   };
 }
 
@@ -67,7 +68,11 @@ async function flushTasks() {
 
 describe('preinject listener mode', () => {
   test('uses tabs.onUpdated fallback prewarm path in MV3', async () => {
-    const { tabsOnUpdated, webRequestOnSendHeaders } = setupBrowserApis();
+    const {
+      tabsOnUpdated,
+      webRequestOnSendHeaders,
+      webRequestOnHeadersReceived,
+    } = setupBrowserApis();
     loadPreinject(3);
     await flushTasks();
     const hasUrlWatcher = tabsOnUpdated.addListener.mock.calls.some(([, filter]) => (
@@ -75,10 +80,19 @@ describe('preinject listener mode', () => {
     ));
     expect(hasUrlWatcher).toBe(true);
     expect(webRequestOnSendHeaders.addListener).not.toHaveBeenCalled();
+    expect(webRequestOnHeadersReceived.addListener).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ types: ['main_frame', 'sub_frame'] }),
+      expect.arrayContaining(['responseHeaders']),
+    );
   });
 
   test('uses webRequest onSendHeaders prewarm path in MV2', async () => {
-    const { tabsOnUpdated, webRequestOnSendHeaders } = setupBrowserApis();
+    const {
+      tabsOnUpdated,
+      webRequestOnSendHeaders,
+      webRequestOnHeadersReceived,
+    } = setupBrowserApis();
     loadPreinject(2);
     await flushTasks();
     const hasUrlWatcher = tabsOnUpdated.addListener.mock.calls.some(([, filter]) => (
@@ -89,5 +103,6 @@ describe('preinject listener mode', () => {
       expect.any(Function),
       expect.objectContaining({ types: ['main_frame', 'sub_frame'] }),
     );
+    expect(webRequestOnHeadersReceived.addListener).not.toHaveBeenCalled();
   });
 });

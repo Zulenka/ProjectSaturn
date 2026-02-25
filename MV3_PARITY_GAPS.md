@@ -18,6 +18,8 @@ Use it as the source-of-truth companion for MV3 rollout and release notes.
 ## Install Flow (`.user.js`)
 
 - MV2 flow used blocking `webRequest` redirects/cancel paths.
+- MV2 blocking interception now avoids `javascript:` redirects.
+  - Current behavior: `.user.js` interception uses `about:blank` redirect handoff to avoid strict-CSP script-URL violations.
 - MV3 flow uses `tabs.onUpdated` interception fallback for `.user.js` main-frame URLs.
   - Current behavior: supported installs continue to open the Confirm flow.
   - Current behavior: listener is scoped to URL updates when filter support exists.
