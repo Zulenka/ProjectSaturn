@@ -45,6 +45,8 @@ export let fileSchemeRequestable;
 const USERSCRIPT_UNREGISTER_DELAY = 30e3;
 let userScriptSeq = 0;
 const registeredUserScriptsByTab = new Map();
+let warnedMissingUserScriptsApi;
+let warnedMissingUserScriptsExecute;
 let cookieStorePrefix;
 
 try {
@@ -234,6 +236,22 @@ export async function forEachTab(callback) {
  */
 export async function executeScriptInTab(tabId, options) {
   if (options.tryUserScripts) {
+    const userScriptsApi = getUserScriptsApi();
+    if (!userScriptsApi?.execute && !userScriptsApi?.register && !warnedMissingUserScriptsApi) {
+      warnedMissingUserScriptsApi = true;
+      if (process.env.DEBUG) {
+        console.warn('MV3: userScripts API is unavailable; code injection compatibility is limited.');
+      }
+    }
+    if (!userScriptsApi?.execute
+    && options.allowRegisterFallback === false
+    && options.allowLegacyCodeFallback === false
+    && !warnedMissingUserScriptsExecute) {
+      warnedMissingUserScriptsExecute = true;
+      if (process.env.DEBUG) {
+        console.warn('MV3: userScripts.execute is unavailable for a strict no-legacy-fallback path.');
+      }
+    }
     const executed = await executeUserScriptCode(tabId, options);
     if (executed) return executed;
     if (options.allowRegisterFallback !== false

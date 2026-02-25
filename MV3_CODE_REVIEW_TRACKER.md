@@ -51,6 +51,7 @@ Primary implementation guidance: `deep-research-report.md`.
   - Disabled legacy eval fallback in MV3 preinject path to avoid CSP `unsafe-eval` violations in core userscript injection flow.
   - Added MV3 guard checks to enforce these fallback protections in `scripts/check-mv3-blocking-gates.js`.
   - Opened issue #16 to track minimum-version/runtime policy for required userscripts capability support in MV3 release channels.
+  - Added once-per-session debug warnings when MV3 userscripts capabilities (`userScripts` / `userScripts.execute`) are unavailable on strict no-legacy-fallback paths.
   - Verified local MV3 build and contract checks pass (`build:all:mv3`, `smoke:mv3:test`, `check:mv3:*`); rollout gate GH issue query step is environment-network dependent.
   - Added `SKIP_GH_ISSUE_CHECKS=1` override in rollout gate script so local beta/canary/stable gating can still run in restricted network environments.
   - Local rollout gates now pass in offline mode for canary/beta/stable (`SKIP_GH_ISSUE_CHECKS=1 yarn -s rollout:mv3:{canary|beta|stable}`).
