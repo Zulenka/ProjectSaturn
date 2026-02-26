@@ -21,11 +21,6 @@ function run() {
   );
   assertContains(
     release,
-    /TARGET_BROWSER=opera\s+TARGET_MANIFEST=mv3\s+npx\s+gulp\s+manifest/,
-    'release.yml: Opera release build must use TARGET_MANIFEST=mv3',
-  );
-  assertContains(
-    release,
     /TARGET_BROWSER=chrome\s+TARGET_MANIFEST=mv3\s+BETA=1\s+npx\s+gulp\s+manifest/,
     'release.yml: CWS beta build must use TARGET_MANIFEST=mv3',
   );

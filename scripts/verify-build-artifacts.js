@@ -36,7 +36,7 @@ function checkMv2Manifest(manifest, dir) {
 }
 
 async function verifyMv3(rootDir = 'dist-builds') {
-  for (const dir of ['chrome-mv3', 'opera-mv3']) {
+  for (const dir of ['chrome-mv3']) {
     checkMv3Manifest(await readManifest(rootDir, dir), dir);
   }
 }

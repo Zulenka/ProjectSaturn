@@ -54,10 +54,6 @@ jobs:
           TARGET_BROWSER=chrome TARGET_MANIFEST=mv3 npx gulp manifest
           cd dist && zip -r ../$ASSETS_DIR/$ASSET_CHROME_ZIP . && cd ..
 
-          # Opera release package (MV3)
-          TARGET_BROWSER=opera TARGET_MANIFEST=mv3 npx gulp manifest
-          cd dist && zip -r ../$ASSETS_DIR/$ASSET_OPERA_ZIP . && cd ..
-
           # Build for CWS beta (MV3), append `BETA` to version name
           # Same as `BETA=1 yarn build` but only manifest is changed by now
           TARGET_BROWSER=chrome TARGET_MANIFEST=mv3 BETA=1 npx gulp manifest

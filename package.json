@@ -16,7 +16,7 @@
     "build:opera": "cross-env TARGET_BROWSER=opera run-s build:raw package:target",
     "build:opera-mv3": "cross-env TARGET_BROWSER=opera TARGET_MANIFEST=mv3 run-s build:raw package:target",
     "build:all": "run-s build:chrome build:firefox build:opera",
-    "build:all:mv3": "run-s build:chrome-mv3 build:opera-mv3",
+    "build:all:mv3": "run-s build:chrome-mv3",
     "build:selfHosted": "cross-env TARGET=selfHosted TARGET_BROWSER=firefox BETA=1 run-s build:raw",
     "package:target": "node scripts/export-dist.mjs",
     "check:mv3:guards": "node scripts/check-mv3-guards.js",

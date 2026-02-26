@@ -29,7 +29,6 @@ describe('verify-build-artifacts', () => {
       permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen', 'userScripts'],
     };
     writeManifest(workDir, 'chrome-mv3', mv3);
-    writeManifest(workDir, 'opera-mv3', mv3);
     await expect(run('mv3', join(workDir, 'dist-builds'))).resolves.toBe('mv3');
   });
 
@@ -46,7 +45,6 @@ describe('verify-build-artifacts', () => {
       browser_action: { default_title: 'x' },
     };
     writeManifest(workDir, 'chrome-mv3', mv3);
-    writeManifest(workDir, 'opera-mv3', mv3);
     writeManifest(workDir, 'chrome', mv2);
     writeManifest(workDir, 'firefox', mv2);
     writeManifest(workDir, 'opera', mv2);
@@ -59,13 +57,6 @@ describe('verify-build-artifacts', () => {
       background: { service_worker: 'background/index.js' },
       permissions: ['storage'],
     });
-    writeManifest(workDir, 'opera-mv3', {
-      manifest_version: 3,
-      action: { default_title: 'x' },
-      background: { service_worker: 'background/index.js' },
-      minimum_chrome_version: '135.0',
-      permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen', 'userScripts'],
-    });
     await expect(run('mv3', join(workDir, 'dist-builds'))).rejects.toThrow('expected action in MV3 manifest');
   });
 
@@ -75,13 +66,6 @@ describe('verify-build-artifacts', () => {
       action: { default_title: 'x' },
       background: { service_worker: 'background/index.js' },
       minimum_chrome_version: '134.0',
-      permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen', 'userScripts'],
-    });
-    writeManifest(workDir, 'opera-mv3', {
-      manifest_version: 3,
-      action: { default_title: 'x' },
-      background: { service_worker: 'background/index.js' },
-      minimum_chrome_version: '135.0',
       permissions: ['storage', 'scripting', 'declarativeNetRequest', 'offscreen', 'userScripts'],
     });
     await expect(run('mv3', join(workDir, 'dist-builds'))).rejects.toThrow('minimum_chrome_version >= 135.0');
