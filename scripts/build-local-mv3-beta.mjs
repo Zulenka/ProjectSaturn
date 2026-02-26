@@ -24,7 +24,12 @@ function run(cmd, env = {}) {
 }
 
 function getVersion(pkg) {
-  return `${pkg.version.match(/\d+\.\d+/)[0]}.${pkg.beta || 0}`;
+  const core = pkg.version.match(/\d+\.\d+\.\d+/)?.[0];
+  if (!core) {
+    throw new Error(`Invalid package version: ${pkg.version}`);
+  }
+  const beta = Number.parseInt(pkg.beta, 10);
+  return beta > 0 ? `${core}.${beta}` : core;
 }
 
 async function main() {
