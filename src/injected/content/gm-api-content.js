@@ -4,6 +4,7 @@ import { decodeResource, elemByTag, makeElem, nextTask, sendCmd } from './util';
 
 const menus = createNullObj();
 const HEAD_TAGS = ['script', 'style', 'link', 'meta'];
+const IS_CHROMIUM_MV3 = chrome.runtime.getManifest().manifest_version === 3;
 const { toLowerCase } = '';
 const { [IDS]: ids } = bridge;
 let setPopupThrottle;
@@ -27,6 +28,9 @@ addHandlers({
     let el;
     let res;
     try {
+      if (IS_CHROMIUM_MV3 && `${tag}`::toLowerCase() === 'script') {
+        throw new SafeError('GM_addElement(script, ...) is blocked in Chromium MV3 due to page CSP restrictions.');
+      }
       const parent = this
         || HEAD_TAGS::includes(`${tag}`::toLowerCase()) && elemByTag('head')
         || elemByTag('body')

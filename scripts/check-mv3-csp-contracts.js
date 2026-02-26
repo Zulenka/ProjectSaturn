@@ -17,6 +17,7 @@ function run() {
   const tabRedirector = readFileSync(resolve('src/background/utils/tab-redirector.js'), 'utf8');
   const preinject = readFileSync(resolve('src/background/utils/preinject.js'), 'utf8');
   const injectContent = readFileSync(resolve('src/injected/content/inject.js'), 'utf8');
+  const contentIndex = readFileSync(resolve('src/injected/content/index.js'), 'utf8');
 
   assertContains(
     tabRedirector,
@@ -41,7 +42,27 @@ function run() {
   );
   assertContains(
     injectContent,
-    /const\s+forceContentByMeta\s*=\s*!isXml\s*&&\s*hasStrictMetaCsp\(\);[\s\S]*?if\s*\(isXml\s*\|\|\s*data\[FORCE_CONTENT\]\s*\|\|\s*forceContentByMeta\)/,
+    /const\s+IS_CHROMIUM_MV3\s*=\s*chrome\.runtime\.getManifest\(\)\.manifest_version\s*===\s*3;/,
+    'inject: Chromium MV3 guard constant must exist for CSP-safe fallback control',
+  );
+  assertContains(
+    injectContent,
+    /export\s+function\s+injectPageSandbox\(data\)\s*\{\s*if\s*\(IS_CHROMIUM_MV3\)\s*\{\s*pageInjectable\s*=\s*false;\s*return\s*false;\s*\}/,
+    'inject: injectPageSandbox must hard-stop on Chromium MV3 to avoid inline page bootstrap',
+  );
+  assertContains(
+    injectContent,
+    /\}\s*else if\s*\(IS_CHROMIUM_MV3\)\s*\{\s*\/\/ Chromium MV3 blocks inline script in this sandboxed about:blank iframe path\./,
+    'inject: Chromium MV3 must skip iframe fallback path that emits CSP inline errors',
+  );
+  assertContains(
+    injectContent,
+    /if\s*\(isXml\s*\|\|\s*data\[FORCE_CONTENT\]\s*\|\|\s*forceContentByMeta\s*\|\|\s*IS_CHROMIUM_MV3\)\s*\{\s*pageInjectable\s*=\s*false;/,
+    'inject: Chromium MV3 must force content-realm and skip page-mode injection bootstrap',
+  );
+  assertContains(
+    injectContent,
+    /const\s+forceContentByMeta\s*=\s*!isXml\s*&&\s*hasStrictMetaCsp\(\);[\s\S]*?if\s*\(isXml\s*\|\|\s*data\[FORCE_CONTENT\]\s*\|\|\s*forceContentByMeta(?:\s*\|\|\s*IS_CHROMIUM_MV3)?\)/,
     'inject: strict meta CSP must force content-realm before page handshake',
   );
   assertContains(
@@ -49,7 +70,47 @@ function run() {
     /nonce\s*=\s*data\.nonce\s*\|\|\s*getPageNonce\(\);/,
     'inject: page handshake must fallback to DOM nonce when header nonce is unavailable',
   );
+  assertContains(
+    contentIndex,
+    /const\s+IS_CHROMIUM_MV3\s*=\s*chrome\.runtime\.getManifest\(\)\.manifest_version\s*===\s*3;/,
+    'content index: Chromium MV3 guard constant must exist for expose/page bootstrap gating',
+  );
+  assertContains(
+    contentIndex,
+    /if\s*\(!IS_CHROMIUM_MV3\s*&&\s*data\[EXPOSE\]\s*!?=\s*null\s*&&\s*!isXml\s*&&\s*injectPageSandbox\(data\)\)/,
+    'content index: expose bootstrap must be disabled in Chromium MV3 to avoid inline CSP path',
+  );
 
+  assertContains(
+    preinject,
+    /async\s+InjectionFeedback\([\s\S]*?\}\s*,\s*src\)\s*\{[\s\S]*?const\s+isTop\s*=\s*src\[kTop\];/,
+    'preinject: InjectionFeedback must capture src[kTop] for frame-aware follow-up processing',
+  );
+  assertContains(
+    preinject,
+    /const\s+CSP_HINT_WAIT_MS\s*=\s*\d+;/,
+    'preinject: CSP hint wait window must be defined to avoid MV3 GetInjected races',
+  );
+  assertContains(
+    preinject,
+    /if\s*\(IS_MV3\s*&&\s*tabId\s*>=\s*0\)\s*\{[\s\S]*?let\s+cspHint\s*=\s*cspHints\[cspHintKey\];[\s\S]*?waitForCspHint\(cspHintKey\)/,
+    'preinject: MV3 GetInjected must wait for CSP hints before page injection in any frame',
+  );
+  assertContains(
+    preinject,
+    /function\s+publishCspHint\(key,\s*hint\)\s*\{/,
+    'preinject: CSP hint publisher must exist to resolve pending waiters',
+  );
+  assertContains(
+    preinject,
+    /function\s+waitForCspHint\(key\)\s*\{/,
+    'preinject: CSP hint waiter must exist for MV3 race mitigation',
+  );
+  assertContains(
+    preinject,
+    /publishCspHint\(getCspHintKey\(info\.tabId,\s*info\.url\),\s*cspResult\);/,
+    'preinject: CSP header detector must publish hints through waiter-aware path',
+  );
   assertContains(
     preinject,
     /if\s*\(!bag\s*&&\s*IS_MV3\s*&&\s*!skippedTabs\[info\.tabId\]\)\s*\{[\s\S]*?bag\s*=\s*prepare\(key,\s*info\.url,\s*isTop\);[\s\S]*?\}/,

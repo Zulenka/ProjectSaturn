@@ -107,7 +107,9 @@ const getKey = (url, isTop) => (
 );
 const getBaseUrl = url => url?.split('#', 1)[0] || url;
 const getCspHintKey = (tabId, url) => `${tabId}\n${getBaseUrl(url)}`;
+const CSP_HINT_WAIT_MS = 75;
 const cspHints = Object.create(null);
+const cspHintWaiters = Object.create(null);
 const normalizeRealm = val => (
   KNOWN_INJECT_INTO[val] ? val : injectInto || AUTO
 );
@@ -200,8 +202,13 @@ addPublicCommands({
     const bag = bagP[INJECT] ? bagP : await bagP[PROMISE];
     /** @type {VMInjection} */
     const inject = bag[INJECT];
-    if (IS_MV3 && isTop && tabId >= 0) {
-      const cspHint = cspHints[getCspHintKey(tabId, url)];
+    if (IS_MV3 && tabId >= 0) {
+      const cspHintKey = getCspHintKey(tabId, url);
+      let cspHint = cspHints[cspHintKey];
+      if (!cspHint && inject[PAGE] && !bag[FORCE_CONTENT]) {
+        // In MV3 this can race with onHeadersReceived on first load.
+        cspHint = await waitForCspHint(cspHintKey);
+      }
       if (cspHint) {
         applyCspResultToBag(cspHint, bag, url);
       }
@@ -231,11 +238,11 @@ addPublicCommands({
     const { tab, [kFrameId]: frameId } = src;
     const isTop = src[kTop];
     const tabId = tab.id;
-    if (IS_MV3 && forceContent && isTop && tabId >= 0) {
+    if (IS_MV3 && forceContent && tabId >= 0) {
       const hintedUrl = url || src.url || tab.url;
       if (hintedUrl) {
         const key = getCspHintKey(tabId, hintedUrl);
-        cspHints[key] = { forceContent: true };
+        publishCspHint(key, { forceContent: true });
         const bag = cache.get(getKey(hintedUrl, true));
         if (bag) applyCspResultToBag(cspHints[key], bag, hintedUrl);
       }
@@ -757,7 +764,7 @@ function detectStrictCsp(info, bag) {
   const cspResult = analyzeCspForInject(h.value);
   if (!cspResult) return;
   if (IS_MV3 && info.tabId >= 0) {
-    cspHints[getCspHintKey(info.tabId, info.url)] = cspResult;
+    publishCspHint(getCspHintKey(info.tabId, info.url), cspResult);
   }
   if (!bag) return;
   return applyCspResultToBag(cspResult, bag, info.url);
@@ -803,7 +810,40 @@ function onTabRemoved(id /* , info */) {
   for (const key in cspHints) {
     if (key.startsWith(prefix)) delete cspHints[key];
   }
+  for (const key in cspHintWaiters) {
+    if (key.startsWith(prefix)) delete cspHintWaiters[key];
+  }
   delete skippedTabs[id];
+}
+
+function publishCspHint(key, hint) {
+  cspHints[key] = hint;
+  const waiters = cspHintWaiters[key];
+  if (!waiters) return;
+  delete cspHintWaiters[key];
+  for (const resolve of waiters) {
+    resolve(hint);
+  }
+}
+
+function waitForCspHint(key) {
+  if (cspHints[key]) return Promise.resolve(cspHints[key]);
+  return new Promise(resolve => {
+    const waiter = hint => {
+      clearTimeout(timeout);
+      resolve(hint);
+    };
+    const timeout = setTimeout(() => {
+      const waiters = cspHintWaiters[key];
+      if (waiters) {
+        const i = waiters.indexOf(waiter);
+        if (i >= 0) waiters.splice(i, 1);
+        if (!waiters.length) delete cspHintWaiters[key];
+      }
+      resolve(cspHints[key]);
+    }, CSP_HINT_WAIT_MS);
+    (cspHintWaiters[key] || (cspHintWaiters[key] = [])).push(waiter);
+  });
 }
 
 function onTabReplaced(addedId, removedId) {

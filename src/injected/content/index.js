@@ -9,6 +9,7 @@ import { isEmpty, XHR_COOKIE_RE } from '../util';
 import { Run, finish } from './cmd-run';
 
 const { [IDS]: ids } = bridge;
+const IS_CHROMIUM_MV3 = chrome.runtime.getManifest().manifest_version === 3;
 
 // Make sure to call obj::method() in code that may run after CONTENT userscripts
 async function init() {
@@ -40,7 +41,7 @@ async function init() {
   if (IS_FIREFOX && info) { // must redefine now as it's used by injectPageSandbox
     IS_FIREFOX = parseFloat(info.ua.browserVersion); // eslint-disable-line no-global-assign
   }
-  if (data[EXPOSE] != null && !isXml && injectPageSandbox(data)) {
+  if (!IS_CHROMIUM_MV3 && data[EXPOSE] != null && !isXml && injectPageSandbox(data)) {
     addHandlers({ GetScriptVer: true });
     bridge.post('Expose', data[EXPOSE]);
   }

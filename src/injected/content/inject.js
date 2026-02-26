@@ -21,6 +21,7 @@ let querySelector = Document[PROTO].querySelector;
 const CSP_RE = /(?:^|[;,])\s*(?:script-src(-elem)?|(d)efault-src)(\s+[^;,]+)/g;
 const NONCE_RE = /'nonce-([-+/=\w]+)'/;
 const UNSAFE_INLINE = "'unsafe-inline'";
+const IS_CHROMIUM_MV3 = chrome.runtime.getManifest().manifest_version === 3;
 
 // https://bugzil.la/1408996
 let VMInitInjection = window[INIT_FUNC_NAME];
@@ -36,6 +37,10 @@ addHandlers({
 });
 
 export function injectPageSandbox(data) {
+  if (IS_CHROMIUM_MV3) {
+    pageInjectable = false;
+    return false;
+  }
   pageInjectable = false;
   const VAULT_WRITER = data[kSessionId] + 'VW';
   const VAULT_WRITER_ACK = VAULT_WRITER + '*';
@@ -69,6 +74,9 @@ export function injectPageSandbox(data) {
     // In top-level pages there is no parent-frame vault handoff to protect,
     // so avoid the iframe fallback path that triggers sandbox warnings.
     startHandshake();
+  } else if (IS_CHROMIUM_MV3) {
+    // Chromium MV3 blocks inline script in this sandboxed about:blank iframe path.
+    // Falling back to content realm avoids noisy CSP violations and broken handshakes.
   } else {
     /* Sites can do window.open(sameOriginUrl,'iframeNameOrNewWindowName').opener=null, spoof JS
      * environment and easily hack into our communication channel before our content scripts run.
@@ -157,7 +165,7 @@ export async function injectScripts(data, info, isXml) {
   bridgeInfo[CONTENT] = info;
   assign(bridge[CACHE], data[CACHE]);
   const forceContentByMeta = !isXml && hasStrictMetaCsp();
-  if (isXml || data[FORCE_CONTENT] || forceContentByMeta) {
+  if (isXml || data[FORCE_CONTENT] || forceContentByMeta || IS_CHROMIUM_MV3) {
     pageInjectable = false;
   } else if (data[PAGE] && pageInjectable == null) {
     injectPageSandbox(data);
@@ -383,7 +391,7 @@ function injectAll(runAt) {
         tardyQueue[id] = 1;
         if (!grant.length) grantless[realm] = 1;
       }
-      if (!inPage) nextTask()::then(() => tardyQueueCheck(items));
+      if (!inPage) nextTask()::then(() => tardyQueueCheck(items, CONTENT));
       else if (!IS_FIREFOX) res = injectPageList(runAt);
     }
   }
@@ -396,7 +404,7 @@ async function injectPageList(runAt) {
     if (scr.code) {
       if (runAt === 'idle') await nextTask();
       if (runAt === 'end') await 0;
-      tardyQueueCheck([scr]);
+      tardyQueueCheck([scr], PAGE);
       // Exposing window.vmXXX setter just before running the script to avoid interception
       if (!scr.meta.unwrap) bridge.post('Plant', scr.key);
       inject(scr);
@@ -421,10 +429,18 @@ function setupContentInvoker() {
  * Chrome doesn't fire a syntax error event, so we'll mark ids that didn't start yet
  * as "still starting", so the popup can show them accordingly.
  */
-function tardyQueueCheck(scripts) {
-  for (const { id } of scripts) {
+function tardyQueueCheck(scripts, realm = PAGE) {
+  for (const { id, displayName, [RUN_AT]: runAt } of scripts) {
     if (tardyQueue[id]) {
       if (bridgeIds[id] === 1) bridgeIds[id] = ID_INJECTING;
+      void sendCmd('DiagnosticsLogScriptIssue', {
+        scriptId: id,
+        scriptName: displayName,
+        runAt,
+        realm,
+        state: ID_INJECTING,
+        reason: 'Script did not begin execution after injection (likely syntax error or blocked bootstrap).',
+      }).catch(() => {});
       delete tardyQueue[id];
     }
   }

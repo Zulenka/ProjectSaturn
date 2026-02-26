@@ -148,4 +148,46 @@ describe('diagnostics logging backend', () => {
     expect(details.nested.cookie).toBe('[Redacted]');
     expect(details.nested.safe).toBe('ok');
   });
+
+  test('logs and deduplicates userscript syntax issue events from content contexts', async () => {
+    setupBrowserApis();
+    require('@/background/utils/diagnostics');
+    const { commands } = require('@/background/utils/init');
+    const src = {
+      origin: 'https://www.torn.com',
+      url: 'https://www.torn.com/profiles.php?XID=1956521',
+      tab: { id: 33 },
+      [kFrameId]: 0,
+      [kTop]: true,
+    };
+    const first = await commands.DiagnosticsLogScriptIssue({
+      scriptId: 101,
+      scriptName: 'Battle Stats Predictor',
+      runAt: 'end',
+      reason: 'Script did not begin execution after injection.',
+      realm: 'page',
+      state: 2,
+    }, src);
+    const second = await commands.DiagnosticsLogScriptIssue({
+      scriptId: 101,
+      scriptName: 'Battle Stats Predictor',
+      runAt: 'end',
+      reason: 'Script did not begin execution after injection.',
+      realm: 'page',
+      state: 2,
+    }, src);
+    expect(first.logged).toBe(true);
+    expect(first.deduped).toBe(false);
+    expect(second.logged).toBe(false);
+    expect(second.deduped).toBe(true);
+    const payload = await commands.DiagnosticsGetLog({
+      event: 'userscript.syntax.suspected',
+      limit: 10,
+    });
+    expect(payload.entries).toHaveLength(1);
+    expect(payload.entries[0].type).toBe('error');
+    expect(payload.entries[0].details.scriptId).toBe(101);
+    expect(payload.entries[0].details.scriptName).toBe('Battle Stats Predictor');
+    expect(payload.entries[0].details.sender.tabId).toBe(33);
+  });
 });

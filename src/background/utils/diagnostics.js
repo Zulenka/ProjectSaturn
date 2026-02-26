@@ -1,4 +1,4 @@
-import { addOwnCommands } from './init';
+import { addOwnCommands, addPublicCommands } from './init';
 import { pushAlert } from './alerts';
 import storage from './storage';
 import { getUserScriptsHealth } from './tabs';
@@ -8,6 +8,7 @@ const DIAGNOSTICS_SCHEMA_VERSION = 1;
 const MV3_INSTALL_DNR_RULE_ID = 940001;
 const DIAGNOSTICS_MAX_ENTRIES = 1500;
 const DIAGNOSTICS_SAVE_DELAY = 1200;
+const SCRIPT_ISSUE_DEDUP_TTL = 60e3;
 const MAX_STRING_LENGTH = 400;
 const MAX_ARRAY_ITEMS = 24;
 const MAX_OBJECT_KEYS = 24;
@@ -22,6 +23,7 @@ const IGNORED_COMMANDS = new Set([
   'DiagnosticsGetLog',
   'DiagnosticsExportLog',
   'DiagnosticsClearLog',
+  'DiagnosticsLogScriptIssue',
 ]);
 
 const state = {
@@ -34,6 +36,7 @@ const state = {
   sessionId: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
   startedAt: Date.now(),
 };
+const recentScriptIssues = new Map();
 
 const loadPromise = (async () => {
   try {
@@ -362,7 +365,8 @@ export function logBackgroundAction(event, details, level = 'info') {
   appendEntry(createEntry('action', level, event, details));
 }
 
-export function logBackgroundError(event, error, details) {
+export function logBackgroundError(event, error, details, options = {}) {
+  const { alert = true } = options || {};
   const alertMessage = `${event}: ${
     error instanceof Error
       ? error.message
@@ -372,13 +376,15 @@ export function logBackgroundError(event, error, details) {
     ...details,
     error: sanitizeError(error),
   }), true);
-  void pushAlert({
-    code: `bg.${event}`,
-    severity: 'error',
-    message: alertMessage,
-    details: sanitizeValue(details),
-    fingerprint: `bg.${event}:${alertMessage}`,
-  });
+  if (alert) {
+    void pushAlert({
+      code: `bg.${event}`,
+      severity: 'error',
+      message: alertMessage,
+      details: sanitizeValue(details),
+      fingerprint: `bg.${event}:${alertMessage}`,
+    });
+  }
 }
 
 export function logCommandReceived({ cmd, data, mode, src }) {
@@ -407,6 +413,55 @@ export function logCommandFailed({ cmd, error, startedAt, src }) {
     sender: summarizeSender(src),
   });
 }
+
+function getScriptIssueFingerprint(payload, src) {
+  const sender = summarizeSender(src);
+  return clipString([
+    payload?.fingerprint,
+    payload?.scriptId,
+    payload?.scriptName,
+    payload?.runAt,
+    payload?.reason,
+    payload?.realm,
+    sender?.tabId,
+    sender?.frameId,
+    sender?.url,
+  ].filter(Boolean).join('|'));
+}
+
+function isDuplicateScriptIssue(fingerprint) {
+  if (!fingerprint) return false;
+  const now = Date.now();
+  const prev = recentScriptIssues.get(fingerprint);
+  if (prev && now - prev < SCRIPT_ISSUE_DEDUP_TTL) {
+    return true;
+  }
+  recentScriptIssues.set(fingerprint, now);
+  if (recentScriptIssues.size > 500) {
+    for (const [key, ts] of recentScriptIssues) {
+      if (now - ts >= SCRIPT_ISSUE_DEDUP_TTL) recentScriptIssues.delete(key);
+    }
+  }
+  return false;
+}
+
+addPublicCommands({
+  DiagnosticsLogScriptIssue(payload, src) {
+    const issue = sanitizeValue(payload) || {};
+    const fingerprint = getScriptIssueFingerprint(issue, src);
+    if (isDuplicateScriptIssue(fingerprint)) {
+      return { logged: false, deduped: true };
+    }
+    const sender = summarizeSender(src);
+    const reason = issue.reason || 'Script stayed in injecting state (suspected syntax/runtime bootstrap failure).';
+    logBackgroundError('userscript.syntax.suspected', reason, {
+      ...issue,
+      sender,
+      fingerprint,
+    }, { alert: false });
+    return { logged: true, deduped: false };
+  },
+});
 
 addOwnCommands({
   async DiagnosticsGetLog(options) {
