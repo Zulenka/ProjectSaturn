@@ -87,7 +87,14 @@ class Locales {
   }
 
   async load() {
-    const langs = await fs.readdir(this.base);
+    let langs = await fs.readdir(this.base);
+    const onlyLangs = normalizeLangs(this.options.langs);
+    if (onlyLangs?.size) {
+      langs = langs.filter(lang => onlyLangs.has(lang));
+    }
+    if (!langs.includes(this.defaultLang)) {
+      throw new Error(`Default locale "${this.defaultLang}" is missing in selected locales.`);
+    }
     this.langs = langs;
     await Promise.all(langs.map(async lang => {
       const locale = new Locale(lang, this.base);
@@ -222,6 +229,18 @@ function normalizeTrailingColon(str, sourceStr = '') {
     return str.slice(0, -1);
   }
   return str;
+}
+
+function normalizeLangs(langs) {
+  if (!langs) return null;
+  if (Array.isArray(langs)) {
+    const list = langs.map(v => `${v}`.trim()).filter(Boolean);
+    return list[0] ? new Set(list) : null;
+  }
+  const list = `${langs}`.split(',')
+    .map(v => v.trim())
+    .filter(Boolean);
+  return list[0] ? new Set(list) : null;
 }
 
 module.exports = {

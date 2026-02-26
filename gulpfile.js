@@ -130,8 +130,13 @@ function checkI18n() {
 }
 
 function copyI18n() {
+  const locales = (process.env.BUILD_LOCALES || 'en')
+    .split(',')
+    .map(lang => lang.trim())
+    .filter(Boolean);
   return i18n.read({
     base: 'src/_locales',
+    langs: locales,
     touchedOnly: true,
     useDefaultLang: true,
     markUntouched: false,
