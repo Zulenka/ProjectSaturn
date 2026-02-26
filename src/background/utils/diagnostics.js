@@ -11,6 +11,7 @@ const DIAGNOSTICS_SAVE_DELAY = 1200;
 const MAX_STRING_LENGTH = 400;
 const MAX_ARRAY_ITEMS = 24;
 const MAX_OBJECT_KEYS = 24;
+const SENSITIVE_KEY_RE = /(?:token|authorization|password|secret|cookie|api[_-]?key)/i;
 const LEVEL_PRIORITY = {
   debug: 0,
   info: 1,
@@ -119,7 +120,9 @@ function sanitizeValue(value, depth = 0, seen = new WeakSet()) {
   }
   const obj = {};
   Object.keys(value).slice(0, MAX_OBJECT_KEYS).forEach(key => {
-    obj[key] = sanitizeValue(value[key], depth + 1, seen);
+    obj[key] = SENSITIVE_KEY_RE.test(key)
+      ? '[Redacted]'
+      : sanitizeValue(value[key], depth + 1, seen);
   });
   return obj;
 }

@@ -295,6 +295,9 @@ export async function executeScriptInTab(tabId, options) {
   if (options.file) injectDetails.files = [options.file];
   else if (options.files) injectDetails.files = options.files;
   else {
+    if (extensionManifest.manifest_version === 3) {
+      throw new Error('MV3 string-code fallback is disabled; use userScripts or file-based injection.');
+    }
     injectDetails.func = (source) => {
       // eslint-disable-next-line no-eval
       return eval(source);

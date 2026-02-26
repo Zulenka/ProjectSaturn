@@ -24,8 +24,13 @@ const DEFAULT_CONFIG = {
   [USERNAME]: '',
   [PASSWORD]: '',
 };
+const LOCAL_HTTP_HOST_RE = /^(localhost|.+\.local|\[::1]|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i;
 
-const WebDAV = BaseService.extend({
+function isLocalHttpHost(hostname = '') {
+  return LOCAL_HTTP_HOST_RE.test(hostname);
+}
+
+export const WebDAV = BaseService.extend({
   name: 'webdav',
   displayName: 'WebDAV',
   properties: {
@@ -45,12 +50,19 @@ const WebDAV = BaseService.extend({
   initToken() {
     const config = this.getUserConfig();
     let url = config[SERVER_URL]?.trim() || '';
-    if (!url.includes('://')) url = `http://${url}`;
+    if (!url.includes('://')) url = `https://${url}`;
     if (!url.endsWith('/')) url += '/';
-    if (!tryUrl(url)) {
+    const normalizedUrl = tryUrl(url);
+    if (!normalizedUrl) {
       this.properties[SERVER_URL] = null;
       return false;
     }
+    const parsedUrl = new URL(normalizedUrl);
+    if (parsedUrl.protocol === 'http:' && !isLocalHttpHost(parsedUrl.hostname)) {
+      this.properties[SERVER_URL] = null;
+      return false;
+    }
+    url = normalizedUrl;
     this.properties[SERVER_URL] = `${url}${VIOLENTMONKEY}/`;
     const { anonymous, username, password } = config;
     if (anonymous) return true;

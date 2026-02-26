@@ -35,6 +35,9 @@ jobs:
           SYNC_ONEDRIVE_CLIENT_ID: ${{ secrets.SYNC_ONEDRIVE_CLIENT_ID }}
         run: yarn && yarn build:all && yarn build:all:mv3 && yarn verify:artifacts:dual
 
+      - name: Dependency Security Audit
+        run: yarn audit:deps:high
+
       - name: MV3 Smoke Tests
         run: yarn smoke:mv3:test
 

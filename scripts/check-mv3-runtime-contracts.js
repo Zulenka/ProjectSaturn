@@ -12,6 +12,7 @@ function run() {
   const syncFlow = readFileSync(resolve('src/background/sync/base.js'), 'utf8');
   const preinjectFlow = readFileSync(resolve('src/background/utils/preinject.js'), 'utf8');
   const tabsFlow = readFileSync(resolve('src/background/utils/tabs.js'), 'utf8');
+  const backgroundFlow = readFileSync(resolve('src/background/index.js'), 'utf8');
   assertContains(
     installFlow,
     /const\s+CAN_BLOCK_INSTALL_INTERCEPT\s*=\s*IS_FIREFOX\s*\|\|\s*!IS_MV3\s*;/,
@@ -51,6 +52,31 @@ function run() {
     tabsFlow,
     /if\s*\(\s*!allowLegacyCodeFallback\s*\)\s*return\s*\[\]/,
     'tabs: missing legacy fallback short-circuit',
+  );
+  assertContains(
+    tabsFlow,
+    /if\s*\(\s*extensionManifest\.manifest_version\s*===\s*3\s*\)\s*\{[\s\S]*?MV3 string-code fallback is disabled/,
+    'tabs: MV3 string-code fallback disable guard is missing',
+  );
+  assertContains(
+    backgroundFlow,
+    /const\s+payload\s*=\s*message\s*&&\s*typeof\s+message\s*===\s*'object'\s*&&\s*!Array\.isArray\(message\)/,
+    'background: command payload object-shape guard is missing',
+  );
+  assertContains(
+    backgroundFlow,
+    /command\.rejected\.invalidPayload/,
+    'background: invalid payload rejection telemetry is missing',
+  );
+  assertContains(
+    backgroundFlow,
+    /typeof\s+cmd\s*!==\s*'string'\s*\|\|\s*!cmd\s*\|\|\s*cmd\.length\s*>\s*128/,
+    'background: command name validation guard is missing',
+  );
+  assertContains(
+    backgroundFlow,
+    /if\s*\(\s*!me\s*&&\s*func\.isOwn\s*&&\s*!src\.fake\s*\)\s*\{\s*throw\s+new\s+SafeError\(`Command is only allowed in extension context: \$\{cmd\}`\);\s*\}/,
+    'background: isOwn extension-origin guard is missing',
   );
   console.log('MV3 runtime contract checks passed.');
 }

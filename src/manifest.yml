@@ -29,12 +29,16 @@ content_scripts:
       - injected-web.js
       - injected.js
     matches:
-      - <all_urls>
+      - http://*/*
+      - https://*/*
+      - file:///*
     run_at: document_start
     all_frames: true
 permissions:
   - tabs
-  - <all_urls>
+  - http://*/*
+  - https://*/*
+  - file:///*
   - webRequest
   - webRequestBlocking
   - notifications

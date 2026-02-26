@@ -123,4 +123,29 @@ describe('diagnostics logging backend', () => {
     expect(health.dnr.sessionRuleCount).toBe(1);
     expect(health.dnr.hasInstallInterceptRule).toBe(true);
   });
+
+  test('redacts sensitive keys in diagnostics details', async () => {
+    setupBrowserApis();
+    const diagnostics = require('@/background/utils/diagnostics');
+    const { commands } = require('@/background/utils/init');
+    diagnostics.logBackgroundAction('security.redaction', {
+      access_token: 'token-value',
+      refreshToken: 'refresh-value',
+      authorization: 'Bearer abc',
+      nested: {
+        apiKey: 'key-value',
+        cookie: 'cookie-value',
+        safe: 'ok',
+      },
+    });
+    const payload = await commands.DiagnosticsGetLog({ event: 'security.redaction', limit: 1 });
+    expect(payload.entries).toHaveLength(1);
+    const { details } = payload.entries[0];
+    expect(details.access_token).toBe('[Redacted]');
+    expect(details.refreshToken).toBe('[Redacted]');
+    expect(details.authorization).toBe('[Redacted]');
+    expect(details.nested.apiKey).toBe('[Redacted]');
+    expect(details.nested.cookie).toBe('[Redacted]');
+    expect(details.nested.safe).toBe('ok');
+  });
 });

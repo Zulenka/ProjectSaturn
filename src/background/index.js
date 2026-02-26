@@ -31,9 +31,36 @@ addPublicCommands({
   },
 });
 
-function handleCommandMessage({ cmd, data, url, [kTop]: mode } = {}, src) {
+function handleCommandMessage(message, src) {
   if (init) {
     return init.then(handleCommandMessage.bind(this, ...arguments));
+  }
+  const payload = message && typeof message === 'object' && !Array.isArray(message)
+    ? message
+    : null;
+  if (!payload) {
+    logBackgroundAction('command.rejected.invalidPayload', {
+      payloadType: typeof message,
+      sender: src && {
+        origin: src.origin,
+        tabId: src.tab?.id,
+        url: src.url,
+      },
+    }, 'warn');
+    return;
+  }
+  const { cmd, data, url, [kTop]: mode } = payload;
+  if (typeof cmd !== 'string' || !cmd || cmd.length > 128) {
+    logBackgroundAction('command.rejected.invalid', {
+      cmdType: typeof cmd,
+      cmdPreview: typeof cmd === 'string' ? cmd.slice(0, 128) : null,
+      sender: src && {
+        origin: src.origin,
+        tabId: src.tab?.id,
+        url: src.url,
+      },
+    }, 'warn');
+    return;
   }
   const startedAt = performance.now();
   logCommandReceived({ cmd, data, mode, src });

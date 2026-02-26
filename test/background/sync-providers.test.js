@@ -32,6 +32,13 @@ function makeCommonMocks() {
     dumpQuery: obj => new URLSearchParams(obj).toString(),
     loadQuery: str => Object.fromEntries(new URLSearchParams(str)),
     getUniqId: jest.fn(() => 'state-1'),
+    tryUrl: (str, base) => {
+      try {
+        return new URL(str, base).href;
+      } catch (e) {
+        return undefined;
+      }
+    },
     noop: () => {},
   };
 }
@@ -45,6 +52,13 @@ function loadProvider(filePath, env) {
   const common = makeCommonMocks();
   const base = makeBaseMocks();
   jest.doMock('@/common', () => common);
+  jest.doMock('@/common/webdav-xml', () => ({
+    parseWebDavDirectoryListing: jest.fn(() => []),
+  }));
+  jest.doMock('@/background/utils/offscreen', () => ({
+    parseWebDavDirectoryInOffscreen: jest.fn(async () => []),
+    requestInOffscreen: jest.fn(),
+  }));
   jest.doMock('@/background/sync/base', () => {
     const BaseService = {
       extend(spec) {
@@ -87,6 +101,7 @@ describe('sync providers auth callback flow', () => {
     dropbox: resolve(__dirname, '../../src/background/sync/dropbox.js'),
     googledrive: resolve(__dirname, '../../src/background/sync/googledrive.js'),
     onedrive: resolve(__dirname, '../../src/background/sync/onedrive.js'),
+    webdav: resolve(__dirname, '../../src/background/sync/webdav.js'),
   };
 
   test('Dropbox authorize/matchAuth/finishAuth contract', async () => {
@@ -176,5 +191,36 @@ describe('sync providers auth callback flow', () => {
       grant_type: 'authorization_code',
       redirect_uri: `${VM_HOME}auth_onedrive.html`,
     });
+  });
+
+  test('WebDAV initToken defaults to https when scheme is omitted', async () => {
+    const { mod, register } = loadProvider(files.webdav, {});
+    expect(register).toHaveBeenCalledWith(mod.WebDAV);
+    const WebDavService = mod.WebDAV;
+    const service = new WebDavService();
+    service.getUserConfig();
+    service.setUserConfig({ serverUrl: 'example.com', anonymous: true });
+    expect(service.initToken()).toBe(true);
+    expect(service.properties.serverUrl.startsWith('https://example.com/')).toBe(true);
+  });
+
+  test('WebDAV initToken preserves explicit local http scheme', async () => {
+    const { mod } = loadProvider(files.webdav, {});
+    const WebDavService = mod.WebDAV;
+    const service = new WebDavService();
+    service.getUserConfig();
+    service.setUserConfig({ serverUrl: 'http://127.0.0.1', anonymous: true });
+    expect(service.initToken()).toBe(true);
+    expect(service.properties.serverUrl.startsWith('http://127.0.0.1/')).toBe(true);
+  });
+
+  test('WebDAV initToken rejects explicit remote http scheme', async () => {
+    const { mod } = loadProvider(files.webdav, {});
+    const WebDavService = mod.WebDAV;
+    const service = new WebDavService();
+    service.getUserConfig();
+    service.setUserConfig({ serverUrl: 'http://example.com', anonymous: true });
+    expect(service.initToken()).toBe(false);
+    expect(service.properties.serverUrl).toBeNull();
   });
 });

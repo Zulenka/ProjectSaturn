@@ -156,6 +156,22 @@ test('executeScriptInTab rejects when no compatible injection API exists', async
     .rejects.toThrow('tabs.executeScript and scripting.executeScript are unavailable');
 });
 
+test('executeScriptInTab rejects MV3 string-code fallback when no userscripts path is used', async () => {
+  const oldManifestVersion = global.extensionManifest.manifest_version;
+  global.extensionManifest.manifest_version = 3;
+  try {
+    tabs.executeScript = undefined;
+    browser.scripting = undefined;
+    chrome.scripting = {
+      executeScript: jest.fn((details, cb) => cb([{ result: 'legacy' }])),
+    };
+    await expect(executeScriptInTab(19, { code: '1 + 1' }))
+      .rejects.toThrow('MV3 string-code fallback is disabled');
+  } finally {
+    global.extensionManifest.manifest_version = oldManifestVersion;
+  }
+});
+
 test('executeScriptInTab keeps top-frame target by default in MV3', async () => {
   tabs.executeScript = undefined;
   browser.scripting = undefined;
