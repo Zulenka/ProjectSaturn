@@ -3,6 +3,7 @@ import {
 } from '@/common';
 import { FILE_GLOB_ALL } from '@/common/consts';
 import cache from './cache';
+import { logBackgroundAction, logBackgroundError } from './diagnostics';
 import { addPublicCommands, commands } from './init';
 import { getOption } from './options';
 import { parseMeta, matchUserScript } from './script';
@@ -28,6 +29,22 @@ const DNR_INSTALL_REGEX_FILTER = '^https:\\/\\/(?:'
   + '|gist\\.github\\.com\\/.*'
   + ')\\/[^/]*?\\.user\\.js(?:[?#].*)?$';
 
+function logInstallAction(event, details, level = 'info') {
+  try {
+    logBackgroundAction(event, details, level);
+  } catch (e) {
+    // diagnostics is best-effort and must never break install routing
+  }
+}
+
+function logInstallError(event, error, details, options = {}) {
+  try {
+    logBackgroundError(event, error, details, { alert: false, ...options });
+  } catch (e) {
+    // diagnostics is best-effort and must never break install routing
+  }
+}
+
 addPublicCommands({
   async CheckInstallerTab(tabId, src) {
     const tab = IS_FIREFOX && (src.url || '').startsWith('file:')
@@ -39,12 +56,31 @@ addPublicCommands({
 
 async function confirmInstall({ code, from, url, fs, parsed }, { tab = {} }) {
   const requestedUrl = url;
+  let resolution = 'passthrough';
   if (!fs) {
-    ({ code, url } = await resolveInstallPayload({ code, parsed, url }));
+    ({ code, url, resolution } = await resolveInstallPayload({ code, parsed, url }));
+    logInstallAction('install.payload.resolved', {
+      parsed: !!parsed,
+      requestedUrl,
+      resolvedUrl: url,
+      resolution,
+      hasMetaBlock: !!matchUserScript(code),
+    });
     // TODO: display the error in UI
     if (!matchUserScript(code)) {
+      const preview = formatInvalidScriptPreview(code);
+      logInstallError('install.payload.invalid', i18n('msgInvalidScript'), {
+        requestedUrl,
+        resolvedUrl: url,
+        resolution,
+        preview,
+        phase: 'validate',
+      }, {
+        source: 'background',
+        phase: 'validate',
+      });
       throw `${i18n('msgInvalidScript')}\n\n${
-        formatInvalidScriptPreview(code)
+        preview
       }...`;
     }
     cache.put(url, code, 3000);
@@ -64,16 +100,27 @@ async function confirmInstall({ code, from, url, fs, parsed }, { tab = {} }) {
   // The tab may have been closed already, in which case we'll open a new tab
   && await browser.tabs.update(tabId, { url: confirmUrl }).catch(noop)
   || await commands.TabOpen({ url: confirmUrl, active: !!active }, { tab });
+  logInstallAction('install.confirm.opened', {
+    requestedUrl,
+    resolvedUrl: url,
+    from,
+    tabId,
+    canReplaceCurTab,
+    confirmUrl,
+    resolution,
+  });
   if (active && windowId !== tab[kWindowId]) {
     await browserWindows?.update(windowId, { focused: true });
   }
 }
 
 async function resolveInstallPayload({ code, parsed, url }) {
+  const requestedUrl = url;
   let resolvedUrl = url;
   let resolvedCode = code ?? (parsed
     ? await request(url).then(r => r.data) // cache-like eager path for parsed sources
     : (await request(url)).data);
+  let resolution = 'direct-response';
   if (!matchUserScript(resolvedCode)) {
     const scriptUrl = getScriptUrlFromMetadataPayload(resolvedCode, url);
     if (scriptUrl && scriptUrl !== url) {
@@ -81,12 +128,21 @@ async function resolveInstallPayload({ code, parsed, url }) {
       if (payload && matchUserScript(payload)) {
         resolvedCode = payload;
         resolvedUrl = scriptUrl;
+        resolution = 'metadata-code-url';
+      } else {
+        resolution = 'metadata-code-url-invalid';
       }
+    } else {
+      resolution = 'invalid-payload';
     }
+  } else {
+    resolution = 'direct-userscript';
   }
   return {
     code: resolvedCode,
     url: resolvedUrl,
+    requestedUrl,
+    resolution,
   };
 }
 
@@ -153,6 +209,12 @@ const maybeRedirectVirtualUrlFF = virtualUrlRe && ((tabId, src) => {
 });
 
 async function maybeInstallUserJs(tabId, url, isWhitelisted) {
+  logInstallAction('install.route.intercepted', {
+    url,
+    tabId,
+    isWhitelisted: !!isWhitelisted,
+    mode: CAN_BLOCK_INSTALL_INTERCEPT ? 'blocking' : 'mv3-fallback',
+  });
   // Getting the tab now before it navigated
   const tab = tabId >= 0 && await browser.tabs.get(tabId) || {};
   const { data: code } = !isWhitelisted && await request(url).catch(noop) || {};
@@ -166,6 +228,11 @@ ${code?.length > 1e6 ? code.slice(0, 1e6) + '...' : code}`;
     if (tabId < 0) {
       console.warn(error);
     } else {
+      logInstallAction('install.route.fallback.invalid', {
+        url,
+        tabId,
+        reason: 'invalid-userscript-payload',
+      }, 'warn');
       commands.Notification?.({
         title: VIOLENTMONKEY,
         text: `${i18n('msgInvalidScript')}\n${url}`,
@@ -212,8 +279,16 @@ const onUserJsRequest = (req) => {
   if (method !== 'GET') {
     return;
   }
+  logInstallAction('install.request.detected', {
+    tabId,
+    url,
+  });
   // open a real URL for simplified userscript URL listed in devtools of the web page
   if (url.startsWith(extensionRoot)) {
+    logInstallAction('install.request.virtual', {
+      tabId,
+      url,
+    });
     if (!CAN_BLOCK_INSTALL_INTERCEPT && tabId >= 0) {
       browser.tabs.update(tabId, { url: resolveVirtualUrl(url) });
     }
@@ -222,10 +297,19 @@ const onUserJsRequest = (req) => {
   let isWhitelisted;
   if (!cache.has(`bypass:${url}`)
   && ((isWhitelisted = whitelistRe.test(url)) || !blacklistRe.test(url))) {
+    logInstallAction('install.request.accepted', {
+      tabId,
+      url,
+      isWhitelisted: !!isWhitelisted,
+    });
     maybeInstallUserJs(tabId, url, isWhitelisted);
     // Using a real document URL avoids CSP errors from javascript: redirects in strict pages.
     return CAN_BLOCK_INSTALL_INTERCEPT && { redirectUrl: 'about:blank' };
   }
+  logInstallAction('install.request.ignored', {
+    tabId,
+    url,
+  });
 };
 const userJsFilter = {
   urls: [
