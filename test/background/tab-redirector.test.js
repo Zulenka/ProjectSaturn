@@ -195,4 +195,45 @@ describe('tab-redirector listener mode', () => {
       expect.objectContaining({ url: expect.stringContaining('confirm/index.html#') }),
     );
   });
+
+  test('MV3 fallback resolves GreasyFork JSONP metadata to code_url before opening Confirm', async () => {
+    jest.resetModules();
+    const { tabsOnUpdated } = setupBrowserApis();
+    const targetUrl = 'https://greasyfork.org/scripts/567659/code/test.user.js';
+    const resolvedCodeUrl = 'https://update.greasyfork.org/scripts/567659/test.user.js';
+    global.browser.tabs.get = jest.fn(async id => ({
+      id,
+      url: targetUrl,
+      active: false,
+      incognito: false,
+      windowId: 1,
+    }));
+    global.extensionManifest.manifest_version = 3;
+    const common = require('@/common');
+    const reqSpy = jest.spyOn(common, 'request').mockImplementation(async (url) => {
+      if (url === targetUrl) {
+        return {
+          data: `/**/callback({"id":567659,"code_url":"${resolvedCodeUrl}"})`,
+        };
+      }
+      if (url === resolvedCodeUrl) {
+        return {
+          data: '// ==UserScript==\n// @name Example\n// ==/UserScript==\n',
+        };
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+    require('@/background/utils/tab-redirector');
+    const handlers = tabsOnUpdated.addListener.mock.calls
+      .filter(([, filter]) => !filter || filter?.properties?.includes('url'))
+      .map(([fn]) => fn);
+    handlers.forEach(fn => fn(44, { url: targetUrl }, { id: 44, url: targetUrl }));
+    await flushTasks();
+    expect(reqSpy).toHaveBeenCalledWith(targetUrl);
+    expect(reqSpy).toHaveBeenCalledWith(resolvedCodeUrl);
+    expect(global.browser.tabs.update).toHaveBeenCalledWith(
+      44,
+      expect.objectContaining({ url: expect.stringContaining('confirm/index.html#') }),
+    );
+  });
 });

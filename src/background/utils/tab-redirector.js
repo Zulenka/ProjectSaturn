@@ -1,4 +1,6 @@
-import { browserWindows, request, noop, i18n, getUniqId } from '@/common';
+import {
+  browserWindows, request, noop, i18n, getUniqId, tryUrl,
+} from '@/common';
 import { FILE_GLOB_ALL } from '@/common/consts';
 import cache from './cache';
 import { addPublicCommands, commands } from './init';
@@ -36,15 +38,13 @@ addPublicCommands({
 });
 
 async function confirmInstall({ code, from, url, fs, parsed }, { tab = {} }) {
+  const requestedUrl = url;
   if (!fs) {
-    code ??= parsed
-      ? request(url).then(r => r.data) // cache the Promise and start fetching now
-      : (await request(url)).data;
+    ({ code, url } = await resolveInstallPayload({ code, parsed, url }));
     // TODO: display the error in UI
-    if (!parsed && !matchUserScript(code)) {
+    if (!matchUserScript(code)) {
       throw `${i18n('msgInvalidScript')}\n\n${
-        code.trim().split(/[\r\n]+\s*/, 9/*max lines*/).join('\n')
-          .slice(0, 500/*max overall length*/)
+        formatInvalidScriptPreview(code)
       }...`;
     }
     cache.put(url, code, 3000);
@@ -54,6 +54,7 @@ async function confirmInstall({ code, from, url, fs, parsed }, { tab = {} }) {
   // Not testing tab.pendingUrl because it will be always equal to `url`
   const canReplaceCurTab = (!incognito || IS_FIREFOX) && (
     url === from
+    || requestedUrl === from
     || cache.has(`autoclose:${tabId}`)
     || NEWTAB_URL_RE.test(from));
   /** @namespace VM.ConfirmCache */
@@ -65,6 +66,57 @@ async function confirmInstall({ code, from, url, fs, parsed }, { tab = {} }) {
   || await commands.TabOpen({ url: confirmUrl, active: !!active }, { tab });
   if (active && windowId !== tab[kWindowId]) {
     await browserWindows?.update(windowId, { focused: true });
+  }
+}
+
+async function resolveInstallPayload({ code, parsed, url }) {
+  let resolvedUrl = url;
+  let resolvedCode = code ?? (parsed
+    ? await request(url).then(r => r.data) // cache-like eager path for parsed sources
+    : (await request(url)).data);
+  if (!matchUserScript(resolvedCode)) {
+    const scriptUrl = getScriptUrlFromMetadataPayload(resolvedCode, url);
+    if (scriptUrl && scriptUrl !== url) {
+      const payload = await request(scriptUrl).then(r => r.data).catch(noop);
+      if (payload && matchUserScript(payload)) {
+        resolvedCode = payload;
+        resolvedUrl = scriptUrl;
+      }
+    }
+  }
+  return {
+    code: resolvedCode,
+    url: resolvedUrl,
+  };
+}
+
+function formatInvalidScriptPreview(code) {
+  return `${code || ''}`.trim()
+    .split(/[\r\n]+\s*/, 9/*max lines*/)
+    .join('\n')
+    .slice(0, 500/*max overall length*/);
+}
+
+function getScriptUrlFromMetadataPayload(payload, baseUrl) {
+  const meta = parseInstallMetadataPayload(payload);
+  const codeUrl = meta?.code_url
+    || meta?.codeUrl
+    || meta?.script?.code_url
+    || meta?.script?.codeUrl;
+  const resolved = codeUrl && tryUrl(codeUrl, baseUrl);
+  return resolved && USERJS_URL_RE.test(resolved) ? resolved : '';
+}
+
+function parseInstallMetadataPayload(payload) {
+  const text = `${payload || ''}`.trim();
+  if (!text) return;
+  const jsonp = text.match(/^(?:\/\*\*\/\s*)?(?:[\w$.]+)\(([\s\S]*)\)\s*;?\s*$/);
+  const jsonText = (jsonp ? jsonp[1] : text).trim();
+  if (!/^[{[]/.test(jsonText)) return;
+  try {
+    return JSON.parse(jsonText);
+  } catch (e) {
+    // not JSON metadata
   }
 }
 
