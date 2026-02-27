@@ -1,6 +1,7 @@
-import { addOwnCommands, addPublicCommands } from './init';
+import * as acorn from 'acorn';
+import { addOwnCommands, addPublicCommands, commands } from './init';
 import { pushAlert } from './alerts';
-import storage from './storage';
+import storage, { S_REQUIRE } from './storage';
 import { getUserScriptsHealth } from './tabs';
 
 const DIAGNOSTICS_STORAGE_KEY = 'diagnosticsLog';
@@ -12,7 +13,10 @@ const SCRIPT_ISSUE_DEDUP_TTL = 60e3;
 const MAX_STRING_LENGTH = 400;
 const MAX_ARRAY_ITEMS = 24;
 const MAX_OBJECT_KEYS = 24;
+const MAX_STACK_FRAMES = 5;
 const SENSITIVE_KEY_RE = /(?:token|authorization|password|secret|cookie|api[_-]?key)/i;
+const STACK_FRAME_CHROME_RE = /^\s*at\s+(?:(.*?)\s+\()?(.+?):(\d+):(\d+)\)?\s*$/;
+const STACK_FRAME_FIREFOX_RE = /^\s*(.*?)@(.+?):(\d+):(\d+)\s*$/;
 const LEVEL_PRIORITY = {
   debug: 0,
   info: 1,
@@ -25,6 +29,11 @@ const IGNORED_COMMANDS = new Set([
   'DiagnosticsClearLog',
   'DiagnosticsLogScriptIssue',
 ]);
+const SYNTAX_PARSE_OPTS = {
+  allowHashBang: true,
+  ecmaVersion: 'latest',
+  sourceType: 'script',
+};
 
 const state = {
   dropped: 0,
@@ -128,6 +137,249 @@ function sanitizeValue(value, depth = 0, seen = new WeakSet()) {
       : sanitizeValue(value[key], depth + 1, seen);
   });
   return obj;
+}
+
+function compactObject(obj) {
+  const out = {};
+  Object.keys(obj).forEach(key => {
+    const value = obj[key];
+    if (value != null && value !== '') out[key] = value;
+  });
+  return out;
+}
+
+function getErrorMessage(error) {
+  if (error instanceof Error) return error.message || error.name || 'Error';
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    return `${error.message || error.name || 'Unknown error'}`;
+  }
+  return `${error || 'Unknown error'}`;
+}
+
+function getFrameFile(url = '') {
+  const input = `${url}`.replace(/[()]/g, '');
+  if (!input) return '';
+  try {
+    const parsed = new URL(input);
+    const parts = parsed.pathname.split('/').filter(Boolean);
+    return parts[parts.length - 1] || parsed.hostname || input;
+  } catch {
+    const parts = input.split(/[\\/]/);
+    return parts[parts.length - 1] || input;
+  }
+}
+
+function parseStackFrames(stackText) {
+  if (!stackText || typeof stackText !== 'string') return [];
+  const frames = [];
+  for (const line of stackText.split('\n')) {
+    let match = line.match(STACK_FRAME_CHROME_RE);
+    if (!match) match = line.match(STACK_FRAME_FIREFOX_RE);
+    if (!match) continue;
+    const [, functionName, url, lineNo, columnNo] = match;
+    frames.push(compactObject({
+      functionName: clipString(functionName || '<anonymous>'),
+      url: clipString(url || ''),
+      file: clipString(getFrameFile(url)),
+      line: +lineNo || undefined,
+      column: +columnNo || undefined,
+    }));
+    if (frames.length >= MAX_STACK_FRAMES) break;
+  }
+  return frames;
+}
+
+function inferErrorSource({ source, sender, topFrame }) {
+  if (source) return source;
+  const frameUrl = `${topFrame?.url || ''}`;
+  if (/^(chrome|moz)-extension:/.test(frameUrl)) return 'background';
+  const senderOrigin = `${sender?.origin || ''}`;
+  if (/^(chrome|moz)-extension:/.test(senderOrigin)) return 'background';
+  if (/^https?:/.test(senderOrigin)) return 'content';
+  if (/^https?:/.test(frameUrl)) return 'page';
+  return 'unknown';
+}
+
+function buildErrorLocation(error, details = {}, options = {}, preParsedFrames) {
+  const sender = details?.sender;
+  const frames = preParsedFrames || parseStackFrames(error?.stack || '');
+  const topFrame = frames[0];
+  const location = compactObject({
+    source: inferErrorSource({ source: options.source, sender, topFrame }),
+    phase: options.phase || details?.phase,
+    file: topFrame?.file || details?.file,
+    line: topFrame?.line || (+details?.line || undefined),
+    column: topFrame?.column || (+details?.column || undefined),
+    functionName: topFrame?.functionName,
+    url: topFrame?.url || details?.url || sender?.url,
+    scriptId: details?.scriptId,
+    scriptName: details?.scriptName,
+    runAt: details?.runAt,
+    realm: details?.realm,
+    command: details?.cmd,
+  });
+  return Object.keys(location).length ? sanitizeValue(location) : null;
+}
+
+function buildDiagnosticFingerprint({
+  event,
+  message,
+  sender,
+  cmd,
+  scriptId,
+  scriptName,
+  runAt,
+  realm,
+  topFrame,
+}) {
+  const parts = [
+    event,
+    cmd,
+    scriptId,
+    scriptName,
+    runAt,
+    realm,
+    message,
+    topFrame?.file,
+    topFrame?.line,
+    topFrame?.column,
+    sender?.url,
+    sender?.tabId,
+    sender?.frameId,
+  ].filter(Boolean);
+  return parts.length ? clipString(parts.join('|')) : '';
+}
+
+function toPositiveInt(value) {
+  const num = +value;
+  return Number.isFinite(num) && num > 0 ? Math.trunc(num) : 0;
+}
+
+function buildEditorRoute({ scriptId, line, column, source, requireUrl }) {
+  const id = toPositiveInt(scriptId);
+  if (!id) return '';
+  const query = new URLSearchParams();
+  if (line > 0 || column > 0) query.set('error', 'syntax');
+  if (line > 0) query.set('line', `${line}`);
+  if (column > 0) query.set('column', `${column}`);
+  if (source) query.set('source', `${source}`.slice(0, 24));
+  if (requireUrl) query.set('requireUrl', clipString(`${requireUrl}`));
+  const queryString = query.toString();
+  return queryString ? `scripts/${id}?${queryString}` : `scripts/${id}`;
+}
+
+function probeSyntaxFromCode(code, { scriptId, source, requireUrl } = {}) {
+  try {
+    acorn.parse(code, SYNTAX_PARSE_OPTS);
+    return {
+      ok: true,
+      scriptId: toPositiveInt(scriptId),
+      source,
+      requireUrl,
+      message: '',
+    };
+  } catch (error) {
+    const line = toPositiveInt(error?.loc?.line);
+    const column = toPositiveInt((error?.loc?.column ?? -1) + 1);
+    return sanitizeValue({
+      ok: false,
+      scriptId: toPositiveInt(scriptId),
+      source,
+      requireUrl,
+      line: line || undefined,
+      column: column || undefined,
+      message: getErrorMessage(error),
+      stack: error?.stack ? clipString(`${error.stack}`) : '',
+    });
+  }
+}
+
+async function resolveScriptSyntaxIssue({
+  scriptId,
+  runAt,
+  realm,
+} = {}) {
+  const id = toPositiveInt(scriptId);
+  if (!id) {
+    return { ok: false, message: 'Missing script id.', source: 'unknown' };
+  }
+  if (!commands.GetScript || !commands.GetScriptCode) {
+    return { ok: false, message: 'Script lookup unavailable.', source: 'unknown' };
+  }
+  const script = commands.GetScript({ id });
+  if (!script) {
+    return { ok: false, message: `Script #${id} not found.`, source: 'unknown', scriptId: id };
+  }
+  const scriptName = script?.custom?.name || script?.meta?.name || '';
+  const code = await commands.GetScriptCode(id);
+  if (typeof code !== 'string' || !code.length) {
+    return {
+      ok: false,
+      scriptId: id,
+      scriptName,
+      source: 'main',
+      runAt,
+      realm,
+      message: 'Script source is empty or unavailable.',
+      editorRoute: buildEditorRoute({ scriptId: id }),
+    };
+  }
+  let probe = probeSyntaxFromCode(code, {
+    scriptId: id,
+    source: 'main',
+  });
+  if (!probe.ok) {
+    return {
+      ...probe,
+      scriptName,
+      runAt,
+      realm,
+      editorRoute: buildEditorRoute({
+        scriptId: id,
+        line: probe.line,
+        column: probe.column,
+        source: probe.source,
+      }),
+    };
+  }
+  const requires = script?.meta?.require || [];
+  const pathMap = script?.custom?.pathMap || {};
+  for (const reqUrl of requires) {
+    const resolvedUrl = pathMap[reqUrl] || reqUrl;
+    const reqCode = resolvedUrl && await storage[S_REQUIRE].getOne(resolvedUrl);
+    if (typeof reqCode !== 'string' || !reqCode.length) continue;
+    probe = probeSyntaxFromCode(reqCode, {
+      scriptId: id,
+      source: 'require',
+      requireUrl: resolvedUrl,
+    });
+    if (!probe.ok) {
+      return {
+        ...probe,
+        scriptName,
+        runAt,
+        realm,
+        editorRoute: buildEditorRoute({
+          scriptId: id,
+          line: probe.line,
+          column: probe.column,
+          source: probe.source,
+          requireUrl: probe.requireUrl,
+        }),
+      };
+    }
+  }
+  return {
+    ok: true,
+    scriptId: id,
+    scriptName,
+    source: 'main',
+    runAt,
+    realm,
+    message: 'No syntax errors detected by parser.',
+    editorRoute: buildEditorRoute({ scriptId: id }),
+  };
 }
 
 function summarizeData(data) {
@@ -270,6 +522,18 @@ function getMeta(entryCount = state.entries.length) {
   };
 }
 
+function getEntryTags(entry) {
+  const tags = [];
+  const event = `${entry?.event || ''}`;
+  if (event.startsWith('command.')) tags.push('command');
+  if (event.startsWith('userscript.')) tags.push('userscript');
+  if (event.startsWith('runtime.')) tags.push('runtime');
+  if (entry?.type === 'error') tags.push('error');
+  const source = entry?.details?.errorLocation?.source;
+  if (source) tags.push(`source:${source}`);
+  return tags;
+}
+
 async function getFilteredEntries({
   event,
   level = 'debug',
@@ -367,14 +631,33 @@ export function logBackgroundAction(event, details, level = 'info') {
 
 export function logBackgroundError(event, error, details, options = {}) {
   const { alert = true } = options || {};
-  const alertMessage = `${event}: ${
-    error instanceof Error
-      ? error.message
-      : `${error || 'Unknown error'}`
-  }`;
+  const message = getErrorMessage(error);
+  const sender = details?.sender;
+  const frames = parseStackFrames(error?.stack || '');
+  const topFrame = frames[0];
+  const alertMessage = `${event}: ${message}`;
+  const errorDetails = sanitizeError(error) || {};
+  if (frames.length) {
+    errorDetails.topFrame = sanitizeValue(topFrame);
+    errorDetails.frames = sanitizeValue(frames);
+  }
+  const errorLocation = buildErrorLocation(error, details, options, frames);
+  const fingerprint = details?.fingerprint || buildDiagnosticFingerprint({
+    event,
+    message,
+    sender,
+    cmd: details?.cmd,
+    scriptId: details?.scriptId,
+    scriptName: details?.scriptName,
+    runAt: details?.runAt,
+    realm: details?.realm,
+    topFrame,
+  });
   appendEntry(createEntry('error', 'error', event, {
     ...details,
-    error: sanitizeError(error),
+    ...(fingerprint ? { fingerprint } : null),
+    ...(errorLocation ? { errorLocation } : null),
+    error: errorDetails,
   }), true);
   if (alert) {
     void pushAlert({
@@ -407,17 +690,32 @@ export function logCommandSucceeded({ cmd, startedAt }) {
 
 export function logCommandFailed({ cmd, error, startedAt, src }) {
   if (!cmd || IGNORED_COMMANDS.has(cmd)) return;
+  const sender = summarizeSender(src);
+  const fingerprint = buildDiagnosticFingerprint({
+    event: 'command.failed',
+    message: getErrorMessage(error),
+    sender,
+    cmd,
+    topFrame: parseStackFrames(error?.stack || '')[0],
+  });
   logBackgroundError('command.failed', error, {
     cmd,
     durationMs: getDuration(startedAt),
-    sender: summarizeSender(src),
+    sender,
+    phase: 'execute',
+    ...(fingerprint ? { fingerprint } : null),
+  }, {
+    source: 'background',
+    phase: 'execute',
   });
 }
 
 function getScriptIssueFingerprint(payload, src) {
+  if (payload?.fingerprint) {
+    return clipString(`${payload.fingerprint}`);
+  }
   const sender = summarizeSender(src);
   return clipString([
-    payload?.fingerprint,
     payload?.scriptId,
     payload?.scriptName,
     payload?.runAt,
@@ -429,41 +727,92 @@ function getScriptIssueFingerprint(payload, src) {
   ].filter(Boolean).join('|'));
 }
 
-function isDuplicateScriptIssue(fingerprint) {
+function isDuplicateScriptIssue(fingerprint, source = 'unknown') {
   if (!fingerprint) return false;
   const now = Date.now();
   const prev = recentScriptIssues.get(fingerprint);
-  if (prev && now - prev < SCRIPT_ISSUE_DEDUP_TTL) {
+  if (prev && now - (prev?.ts || 0) < SCRIPT_ISSUE_DEDUP_TTL) {
+    // Prefer richer signals over popup fallback when both report the same stall.
+    if (prev?.source === 'popup' && source !== 'popup') {
+      recentScriptIssues.set(fingerprint, { ts: now, source });
+      return false;
+    }
     return true;
   }
-  recentScriptIssues.set(fingerprint, now);
+  recentScriptIssues.set(fingerprint, { ts: now, source });
   if (recentScriptIssues.size > 500) {
-    for (const [key, ts] of recentScriptIssues) {
-      if (now - ts >= SCRIPT_ISSUE_DEDUP_TTL) recentScriptIssues.delete(key);
+    for (const [key, info] of recentScriptIssues) {
+      if (now - (info?.ts || 0) >= SCRIPT_ISSUE_DEDUP_TTL) recentScriptIssues.delete(key);
     }
   }
   return false;
 }
 
 addPublicCommands({
-  DiagnosticsLogScriptIssue(payload, src) {
+  async DiagnosticsLogScriptIssue(payload, src) {
     const issue = sanitizeValue(payload) || {};
+    const sender = summarizeSender(src);
+    const isExtensionSender = !!(sender?.origin && /^(?:chrome|moz|edge)-extension:\/\//.test(sender.origin));
+    const source = isExtensionSender
+      ? 'popup'
+      : issue.realm === 'page' ? 'page' : 'content';
     const fingerprint = getScriptIssueFingerprint(issue, src);
-    if (isDuplicateScriptIssue(fingerprint)) {
+    if (isDuplicateScriptIssue(fingerprint, source)) {
       return { logged: false, deduped: true };
     }
-    const sender = summarizeSender(src);
-    const reason = issue.reason || 'Script stayed in injecting state (suspected syntax/runtime bootstrap failure).';
-    logBackgroundError('userscript.syntax.suspected', reason, {
+    const syntaxProbe = await resolveScriptSyntaxIssue({
+      scriptId: issue.scriptId,
+      runAt: issue.runAt,
+      realm: issue.realm,
+    });
+    const hasSyntaxLocation = !!(syntaxProbe && !syntaxProbe.ok && (syntaxProbe.line || syntaxProbe.column));
+    const classification = hasSyntaxLocation
+      ? 'syntax-error'
+      : syntaxProbe?.ok
+        ? 'bootstrap-blocked'
+        : 'startup-stalled';
+    const event = classification === 'syntax-error'
+      ? 'userscript.syntax.error'
+      : classification === 'bootstrap-blocked'
+        ? 'userscript.bootstrap.blocked'
+        : 'userscript.startup.stalled';
+    const reason = issue.reason || (
+      classification === 'syntax-error'
+        ? 'Script has a syntax error and could not execute.'
+        : classification === 'bootstrap-blocked'
+          ? 'Script passed syntax parsing but was blocked before bootstrap.'
+          : 'Script stayed in injecting state and did not report a start signal.'
+    );
+    const syntaxSummary = syntaxProbe?.ok
+      ? 'Syntax parse passed; startup likely blocked by CSP, realm, or injection constraints.'
+      : '';
+    logBackgroundError(event, reason, {
       ...issue,
+      ...(syntaxProbe ? { syntaxProbe } : null),
+      ...(classification ? { classification } : null),
+      ...(syntaxSummary ? { syntaxSummary } : null),
+      ...(syntaxProbe?.line ? {
+        line: syntaxProbe.line,
+        column: syntaxProbe.column,
+        file: syntaxProbe.source === 'require' ? 'require' : 'userscript',
+        url: syntaxProbe.requireUrl,
+      } : null),
       sender,
+      phase: 'bootstrap',
       fingerprint,
-    }, { alert: false });
+    }, {
+      alert: false,
+      source,
+      phase: 'bootstrap',
+    });
     return { logged: true, deduped: false };
   },
 });
 
 addOwnCommands({
+  async DiagnosticsResolveScriptSyntax(payload) {
+    return resolveScriptSyntaxIssue(payload);
+  },
   async DiagnosticsGetLog(options) {
     const entries = await getFilteredEntries(options);
     return {
@@ -475,11 +824,17 @@ addOwnCommands({
   async DiagnosticsExportLog(options) {
     const entries = await getFilteredEntries(options);
     const exportedAt = Date.now();
+    const exportEntries = entries.map(entry => ({
+      ...entry,
+      location: entry?.details?.errorLocation || null,
+      fingerprint: entry?.details?.fingerprint || '',
+      tags: getEntryTags(entry),
+    }));
     const payload = {
       exportedAt: new Date(exportedAt).toISOString(),
-      meta: getMeta(entries.length),
+      meta: getMeta(exportEntries.length),
       stats: getStats(entries),
-      entries,
+      entries: exportEntries,
     };
     const content = JSON.stringify(payload, null, 2);
     return {
@@ -521,8 +876,17 @@ globalThis.addEventListener?.('error', event => {
     column: event.colno,
     file: event.filename,
     line: event.lineno,
+    phase: 'global.error',
+  }, {
+    source: 'background',
+    phase: 'global.error',
   });
 });
 globalThis.addEventListener?.('unhandledrejection', event => {
-  logBackgroundError('runtime.unhandledrejection', event.reason, {});
+  logBackgroundError('runtime.unhandledrejection', event.reason, {
+    phase: 'global.unhandledrejection',
+  }, {
+    source: 'background',
+    phase: 'global.unhandledrejection',
+  });
 });

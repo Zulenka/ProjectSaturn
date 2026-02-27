@@ -41,6 +41,15 @@
       <b v-text="fatal[0]"/>
       {{fatal[1]}}
     </p>
+    <p v-if="syntaxJump && nav === 'code'" class="shelf syntax-jump">
+      Syntax target: line {{syntaxJump.line}}, column {{syntaxJump.column}}
+      <template v-if="syntaxJump.source">
+        ({{syntaxJump.source}})
+      </template>
+      <template v-if="syntaxJump.requireUrl">
+        - {{syntaxJump.requireUrl}}
+      </template>
+    </p>
 
     <vm-code
       class="flex-auto"
@@ -219,6 +228,9 @@ const hashPattern = computed(() => { // eslint-disable-line vue/return-in-comput
 const fatal = ref();
 const frozen = ref(false);
 const frozenNote = ref(false);
+const syntaxJump = ref(null);
+let syntaxJumpKey = '';
+let syntaxMarkedLine = -1;
 
 const navItems = computed(() => {
   const { meta, props: { id }, $cache = {} } = script.value;
@@ -237,6 +249,59 @@ const navItems = computed(() => {
 });
 const scriptName = computed(() => (store.title = getScriptName(script.value)));
 
+function parseSyntaxRouteTarget() {
+  const query = store.route?.query || {};
+  const line = +query.line;
+  const column = +query.column;
+  if (query.error !== 'syntax' && !(line > 0 || column > 0)) return null;
+  return {
+    line: line > 0 ? Math.trunc(line) : 1,
+    column: column > 0 ? Math.trunc(column) : 1,
+    source: `${query.source || ''}`.slice(0, 24),
+    requireUrl: `${query.requireUrl || ''}`.slice(0, 500),
+  };
+}
+
+function clearSyntaxMarker() {
+  if (CM && syntaxMarkedLine >= 0) {
+    CM.removeLineClass(syntaxMarkedLine, 'background', 'vm-syntax-target-line');
+    syntaxMarkedLine = -1;
+  }
+}
+
+async function applySyntaxRouteTarget(force) {
+  const target = parseSyntaxRouteTarget();
+  const scriptId = script.value?.props?.id;
+  if (!CM || !scriptId || !target) {
+    if (!target) {
+      clearSyntaxMarker();
+      syntaxJump.value = null;
+      syntaxJumpKey = '';
+    }
+    return;
+  }
+  const key = `${scriptId}:${target.line}:${target.column}:${target.source}:${target.requireUrl}`;
+  if (!force && key === syntaxJumpKey) return;
+  const maxLine = Math.max(0, CM.doc.size - 1);
+  const line = Math.min(maxLine, Math.max(0, target.line - 1));
+  const ch = Math.max(0, target.column - 1);
+  clearSyntaxMarker();
+  CM.operation(() => {
+    CM.setCursor(line, ch, { scroll: false });
+    CM.scrollIntoView({ line, ch }, CM.display.wrapper.clientHeight / 2);
+    CM.addLineClass(line, 'background', 'vm-syntax-target-line');
+  });
+  syntaxMarkedLine = line;
+  syntaxJump.value = {
+    ...target,
+    line: line + 1,
+    column: ch + 1,
+  };
+  syntaxJumpKey = key;
+  nav.value = 'code';
+  CM.focus();
+}
+
 watch(nav, async val => {
   await nextTick();
   if (val === 'code') CM.focus();
@@ -248,6 +313,19 @@ watch(canSave, val => {
 });
 watch(codeDirty, onDirty);
 watch(script, onScript);
+watch(
+  () => [
+    store.route.query.error,
+    store.route.query.line,
+    store.route.query.column,
+    store.route.query.source,
+    store.route.query.requireUrl,
+    script.value?.props?.id,
+  ],
+  () => {
+    nextTick(() => applySyntaxRouteTarget(true));
+  },
+);
 
 {
   // The eslint rule is bugged as this is a block scope, not a global scope.
@@ -277,6 +355,7 @@ onMounted(() => {
   if (browserWindows && options.get('editorWindow') && global.history.length === 1) {
     browserWindows.getCurrent({ populate: true }).then(setupSavePosition);
   }
+  nextTick(() => applySyntaxRouteTarget(true));
   // hotkeys
   const navLabels = Object.values(navItems.value);
   const hk = hotkeys.value = [
@@ -298,6 +377,7 @@ onActivated(() => {
     keyboardService.register('f1', () => { nav.value = 'help'; }),
   ];
   store.title = scriptName.value;
+  nextTick(() => applySyntaxRouteTarget(false));
 });
 
 onDeactivated(() => {
@@ -305,6 +385,7 @@ onDeactivated(() => {
   store.tags =
   store.title = null;
   toggleUnloadSentry(false);
+  clearSyntaxMarker();
   disposeList?.forEach(dispose => dispose());
 });
 
@@ -517,6 +598,11 @@ function setupSavePosition({ id: curWndId, tabs }) {
     background: firebrick;
     color: white;
   }
+  .syntax-jump {
+    color: #b26a00;
+    background: color-mix(in srgb, #ffcc66 16%, var(--bg));
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  }
   .frozen-note {
     background: var(--bg);
   }
@@ -527,6 +613,10 @@ function setupSavePosition({ id: curWndId, tabs }) {
   .readonly {
     opacity: .75; /* opacity plays well with custom editor colors */
   }
+}
+
+.vm-syntax-target-line {
+  background: color-mix(in srgb, #ffcc66 28%, transparent) !important;
 }
 
 .touch body {

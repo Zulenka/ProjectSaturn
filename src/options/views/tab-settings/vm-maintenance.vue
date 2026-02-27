@@ -85,6 +85,11 @@
             <span class="diagnostics-event" v-text="entry.event" />
             <span class="diagnostics-summary" v-text="summarizeDiagnostic(entry)" />
           </summary>
+          <div class="diagnostics-entry-tools" v-if="canOpenErrorInEditor(entry)">
+            <button @click.stop="openErrorInEditor(entry)"
+                    :disabled="store.batch"
+                    v-text="openErrorButtonLabel(entry)" />
+          </div>
           <pre v-text="formatDiagnosticDetails(entry)" />
         </details>
       </div>
@@ -211,15 +216,93 @@ function formatDiagnosticsTime(ts) {
 }
 
 function summarizeDiagnostic(entry) {
+  const location = formatDiagnosticLocation(entry);
   const details = entry?.details || {};
   const errorMessage = details.error?.message || details.error?.name;
   const rawMessage = errorMessage || details.message || '';
-  if (rawMessage) return `${rawMessage}`.slice(0, 180);
-  return JSON.stringify(details).slice(0, 180);
+  if (rawMessage) {
+    return `${location ? `[${location}] ` : ''}${rawMessage}`.slice(0, 180);
+  }
+  return `${location ? `[${location}] ` : ''}${JSON.stringify(details)}`.slice(0, 180);
+}
+
+function getDiagnosticTopFrame(entry) {
+  const details = entry?.details || {};
+  return details.errorLocation || details.error?.topFrame || null;
+}
+
+function formatDiagnosticLocation(entry) {
+  const frame = getDiagnosticTopFrame(entry);
+  if (!frame) return '';
+  const file = frame.file || frame.url || frame.command || 'unknown';
+  const line = frame.line ?? '?';
+  const column = frame.column ?? '?';
+  return `${file}:${line}:${column}`;
 }
 
 function formatDiagnosticDetails(entry) {
-  return JSON.stringify(entry?.details || {}, null, 2);
+  const details = entry?.details || {};
+  const frame = getDiagnosticTopFrame(entry);
+  if (!frame) return JSON.stringify(details, null, 2);
+  const header = [
+    `Top frame: ${formatDiagnosticLocation(entry)}`,
+    frame.source ? `Source: ${frame.source}` : '',
+    frame.phase ? `Phase: ${frame.phase}` : '',
+  ].filter(Boolean).join('  ');
+  return `${header}\n\n${JSON.stringify(details, null, 2)}`;
+}
+
+function toPositiveInt(value) {
+  const num = +value;
+  return Number.isFinite(num) && num > 0 ? Math.trunc(num) : 0;
+}
+
+function getEditorTarget(entry) {
+  const details = entry?.details || {};
+  const syntaxProbe = details.syntaxProbe || {};
+  const scriptId = toPositiveInt(details.scriptId || syntaxProbe.scriptId);
+  if (!scriptId) return null;
+  return {
+    id: scriptId,
+    line: toPositiveInt(syntaxProbe.line || details?.errorLocation?.line),
+    column: toPositiveInt(syntaxProbe.column || details?.errorLocation?.column),
+    source: syntaxProbe.source || '',
+    requireUrl: syntaxProbe.requireUrl || '',
+    runAt: details.runAt || '',
+    realm: details.realm || '',
+  };
+}
+
+function canOpenErrorInEditor(entry) {
+  return !!getEditorTarget(entry);
+}
+
+function openErrorButtonLabel(entry) {
+  const target = getEditorTarget(entry);
+  if (!target) return 'Open script';
+  return target.line > 0 || target.column > 0
+    ? 'Open at error'
+    : 'Open script';
+}
+
+async function openErrorInEditor(entry) {
+  const target = getEditorTarget(entry);
+  if (!target) return;
+  let resolved = null;
+  if (!target.line || !target.column) {
+    resolved = await sendCmdDirectly('DiagnosticsResolveScriptSyntax', {
+      scriptId: target.id,
+      runAt: target.runAt,
+      realm: target.realm,
+    }).catch(() => null);
+  }
+  await sendCmdDirectly('OpenEditorAt', {
+    id: target.id,
+    line: toPositiveInt(resolved?.line) || target.line,
+    column: toPositiveInt(resolved?.column) || target.column,
+    source: resolved?.source || target.source,
+    requireUrl: resolved?.requireUrl || target.requireUrl,
+  }).catch(() => sendCmdDirectly('OpenEditor', target.id));
 }
 
 async function loadDiagnosticsConsole({ quiet } = {}) {
@@ -254,6 +337,7 @@ async function copyDiagnosticsConsole() {
     `[${entry.iso || new Date(entry.ts).toISOString()}] `
     + `${entry.level.toUpperCase()} `
     + `${entry.event} `
+    + `${formatDiagnosticLocation(entry) ? `@ ${formatDiagnosticLocation(entry)} ` : ''}`
     + `${summarizeDiagnostic(entry)}`
   )).join('\n');
   try {
@@ -360,7 +444,8 @@ onBeforeUnmount(() => {
   width: 4.4rem;
 }
 .diagnostics-console-body {
-  max-height: 17rem;
+  min-height: 9rem;
+  max-height: 20rem;
   overflow: auto;
   border: 1px solid var(--fill-5);
   border-radius: 6px;
@@ -389,6 +474,9 @@ onBeforeUnmount(() => {
   padding: .45rem .6rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: .78rem;
+}
+.diagnostics-entry-tools {
+  padding: 0 .6rem .45rem;
 }
 .diagnostics-time {
   opacity: .8;
@@ -424,6 +512,7 @@ onBeforeUnmount(() => {
   border-top: 1px dashed var(--fill-4);
   font-size: .75rem;
   line-height: 1.25;
+  max-height: 14rem;
   overflow: auto;
 }
 </style>

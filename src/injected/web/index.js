@@ -126,18 +126,60 @@ addHandlers({
 });
 
 function onCodeSet(fn) {
-  const item = toRun[fn.name];
+  const runKey = fn?.name;
+  const item = runKey && toRun[runKey];
   const el = document::getCurrentScript();
-  const { gm, wrapper = global, grantless } = makeGmApiWrapper(item);
-  if (grantless) grantlessUsage[item.id] = grantless;
-  // Deleting now to prevent interception via DOMNodeRemoved on el::remove()
-  delete window[item.key.win];
-  if (process.env.DEBUG) {
-    log('info', [bridge.mode], item.displayName);
+  if (!item) {
+    bridge.post('DiagnosticsLogScriptIssue', {
+      scriptId: 0,
+      scriptName: displayNames[0] || '',
+      runAt: '',
+      realm: bridge.mode,
+      state: ID_INJECTING,
+      phase: 'onCodeSet',
+      checkPhase: 'missing-script-payload',
+      reason: `Bootstrap failed: no script payload found for key "${runKey || '<anonymous>'}".`,
+      pageUrl: location.href,
+      fingerprint: ['missing-payload', runKey, location.href].filter(Boolean).join('|'),
+      bootstrapError: {
+        message: 'Missing script payload in toRun map before startup.',
+        runKey,
+      },
+    });
+    if (el) el::remove();
+    return;
   }
-  if (el) {
-    el::remove();
+  try {
+    const { gm, wrapper = global, grantless } = makeGmApiWrapper(item);
+    if (grantless) grantlessUsage[item.id] = grantless;
+    // Deleting now to prevent interception via DOMNodeRemoved on el::remove()
+    delete window[item.key.win];
+    if (process.env.DEBUG) {
+      log('info', [bridge.mode], item.displayName);
+    }
+    if (el) {
+      el::remove();
+    }
+    bridge.post('Run', item.id);
+    wrapper::fn(gm, logging.error);
+  } catch (error) {
+    bridge.post('DiagnosticsLogScriptIssue', {
+      scriptId: item.id,
+      scriptName: item.displayName,
+      runAt: item[RUN_AT],
+      realm: bridge.mode,
+      state: ID_INJECTING,
+      phase: 'onCodeSet',
+      checkPhase: 'pre-run-exception',
+      reason: 'Bootstrap exception thrown before startup completion.',
+      pageUrl: location.href,
+      fingerprint: [item.id, item[RUN_AT], location.href].filter(Boolean).join('|'),
+      bootstrapError: {
+        name: `${error?.name || ''}`,
+        message: `${error?.message || error || ''}`,
+        stack: `${error?.stack || ''}`.slice(0, 4000),
+      },
+    });
+    throw error;
   }
-  bridge.post('Run', item.id);
-  wrapper::fn(gm, logging.error);
 }

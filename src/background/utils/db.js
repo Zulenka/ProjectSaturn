@@ -78,8 +78,9 @@ addOwnCommands({
   GetTags: () => getScriptsTags(aliveScripts),
   /** @return {Promise<void>} */
   async MarkRemoved({ id, removed }) {
+    const script = getScriptById(id);
+    if (!script) return;
     if (!removed) {
-      const script = getScriptById(id);
       const conflict = getScript({ meta: script.meta });
       if (conflict) throw i18n('msgNamespaceConflictRestore');
     }
@@ -88,8 +89,9 @@ addOwnCommands({
       props: { lastModified: Date.now() },
     });
     const list = removed ? aliveScripts : removedScripts;
-    const i = list.findIndex(script => script.props.id === id);
-    const [script] = list.splice(i, 1);
+    const i = list.indexOf(script);
+    if (i < 0) return;
+    list.splice(i, 1);
     (removed ? removedScripts : aliveScripts).push(script);
   },
   /** @return {Promise<number>} */
@@ -241,7 +243,8 @@ export function getScriptById(id) {
 }
 
 export function getScriptsByIdsOrAll(ids) {
-  return ids?.map(getScriptById) ?? [...aliveScripts, ...removedScripts];
+  const scripts = ids?.map(getScriptById) ?? [...aliveScripts, ...removedScripts];
+  return scripts.filter(script => script?.meta && script.custom && script.props);
 }
 
 /** @return {?VMScript} */
@@ -452,10 +455,7 @@ export function notifyToOpenScripts(title, text, ids) {
 export async function getData({ id, ids, sizes }) {
   if (id) ids = [id];
   const res = {};
-  const scripts = ids
-    // Some ids shown in popup/editor may have been hard-deleted
-    ? getScriptsByIdsOrAll(ids).filter(Boolean)
-    : getScriptsByIdsOrAll();
+  const scripts = getScriptsByIdsOrAll(ids);
   scripts.forEach(inferScriptProps);
   res[SCRIPTS] = scripts;
   if (sizes) res.sizes = getSizes(ids);

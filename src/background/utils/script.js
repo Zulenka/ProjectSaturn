@@ -245,6 +245,7 @@ function inferScriptSupportUrl(script, home = getScriptHome(script)) {
 
 /** @param {VMScript} script */
 export function inferScriptProps(script) {
+  if (!script?.meta || !script.custom || !script.props) return;
   const data = script[INFERRED] ??= {};
   const home = data[HOMEPAGE_URL] ??= getScriptHome(script) || inferScriptHome(script);
   data[SUPPORT_URL] ??= !getScriptSupportUrl(script) && inferScriptSupportUrl(script, home);

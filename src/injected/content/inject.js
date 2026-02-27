@@ -6,6 +6,7 @@ import { Run } from './cmd-run';
 const bridgeIds = bridge[IDS];
 const kWrappedJSObject = 'wrappedJSObject';
 let tardyQueue;
+let scriptPhases;
 let bridgeInfo;
 /** @type {{[runAt: VMScriptRunAt]: VMInjection.Script[]}} */
 let contLists, pageLists;
@@ -22,6 +23,9 @@ const CSP_RE = /(?:^|[;,])\s*(?:script-src(-elem)?|(d)efault-src)(\s+[^;,]+)/g;
 const NONCE_RE = /'nonce-([-+/=\w]+)'/;
 const UNSAFE_INLINE = "'unsafe-inline'";
 const IS_CHROMIUM_MV3 = chrome.runtime.getManifest().manifest_version === 3;
+const TARDY_INITIAL_DELAY_MS = IS_CHROMIUM_MV3 ? 500 : 0;
+const TARDY_RECHECK_DELAY_MS = IS_CHROMIUM_MV3 ? 750 : 0;
+const TARDY_MAX_WAIT_MS = IS_CHROMIUM_MV3 ? 2000 : 0;
 
 // https://bugzil.la/1408996
 let VMInitInjection = window[INIT_FUNC_NAME];
@@ -173,8 +177,11 @@ export async function injectScripts(data, info, isXml) {
   const toContent = data[SCRIPTS]
     .filter(scr => triageScript(scr) === CONTENT)
     .map(scr => [scr.id, scr.key.data]);
-  const moreData = (more || toContent.length)
-    && sendFeedback(toContent, more);
+  const shouldDeferFeedback = IS_CHROMIUM_MV3;
+  let moreData;
+  if (!shouldDeferFeedback && (more || toContent.length)) {
+    moreData = sendFeedback(toContent, more);
+  }
   const getReadyState = more && describeProperty(Document[PROTO], 'readyState').get;
   const wasInjectableFF = IS_FIREFOX && !nonce && pageInjectable;
   const pageBodyScripts = pageLists?.[BODY];
@@ -183,8 +190,13 @@ export async function injectScripts(data, info, isXml) {
     querySelector = document.querySelector;
   }
   tardyQueue = createNullObj();
+  scriptPhases = createNullObj();
   // Using a callback to avoid a microtask tick when the root element exists or appears.
   await onElement('*', injectAll, 'start');
+  if (!moreData && (more || toContent.length)) {
+    // In MV3, send feedback after ScriptData dispatch so content bootstrap setters are ready.
+    moreData = sendFeedback(toContent, more);
+  }
   if (pageBodyScripts || contLists?.[BODY]) {
     await onElement(BODY, !wasInjectableFF || !pageBodyScripts ? injectAll : arg => {
       if (didPageLoseInjectability(toContent, pageBodyScripts)) {
@@ -221,7 +233,26 @@ export async function injectScripts(data, info, isXml) {
     await injectAll('idle');
   }
   // release for GC
+  // Keep `scriptPhases` alive because delayed `tardyQueueCheck` callbacks may still run.
+  // `markScriptPhase` resets it lazily for subsequent navigations.
   bridgeInfo = contLists = pageLists = VMInitInjection = null;
+}
+
+function markScriptPhase(id, phase, extra) {
+  const map = scriptPhases || (scriptPhases = createNullObj());
+  const state = map[id] || (map[id] = {
+    phase: '',
+    history: [],
+  });
+  state.phase = phase;
+  const point = {
+    phase,
+    ts: Date.now(),
+    ...extra,
+  };
+  safePush(state.history, point);
+  if (state.history.length > 8) state.history.splice(0, state.history.length - 8);
+  return state;
 }
 
 function hasStrictMetaCsp() {
@@ -388,10 +419,14 @@ function injectAll(runAt) {
       bridge.post('ScriptData', { items, info: bridgeInfo[realm] }, realm);
       bridgeInfo[realm] = false; // must be a sendable value to have own prop in the receiver
       for (const { id, meta: { grant } } of items) {
-        tardyQueue[id] = 1;
+        tardyQueue[id] = {
+          queuedAt: Date.now(),
+          nextCheckAt: 0,
+        };
+        markScriptPhase(id, 'queued', { realm, runAt });
         if (!grant.length) grantless[realm] = 1;
       }
-      if (!inPage) nextTask()::then(() => tardyQueueCheck(items, CONTENT));
+      if (!inPage) scheduleTardyQueueCheck(items, CONTENT, 'post-dispatch', TARDY_INITIAL_DELAY_MS);
       else if (!IS_FIREFOX) res = injectPageList(runAt);
     }
   }
@@ -404,13 +439,30 @@ async function injectPageList(runAt) {
     if (scr.code) {
       if (runAt === 'idle') await nextTask();
       if (runAt === 'end') await 0;
-      tardyQueueCheck([scr], PAGE);
       // Exposing window.vmXXX setter just before running the script to avoid interception
-      if (!scr.meta.unwrap) bridge.post('Plant', scr.key);
+      if (!scr.meta.unwrap) {
+        bridge.post('Plant', scr.key);
+        markScriptPhase(scr.id, 'plant-sent', { realm: PAGE, runAt });
+      }
       inject(scr);
+      markScriptPhase(scr.id, 'injected', { realm: PAGE, runAt });
       scr.code = '';
-      if (scr.meta.unwrap) Run(scr.id);
+      if (scr.meta.unwrap) {
+        Run(scr.id);
+        markScriptPhase(scr.id, 'run-dispatched', { realm: PAGE, runAt });
+      }
+      scheduleTardyQueueCheck([scr], PAGE, 'post-inject', TARDY_INITIAL_DELAY_MS);
     }
+  }
+}
+
+function scheduleTardyQueueCheck(scripts, realm, checkPhase, delay = 0) {
+  if (delay > 0) {
+    setTimeout(() => {
+      tardyQueueCheck(scripts, realm, checkPhase);
+    }, delay);
+  } else {
+    nextTask()::then(() => tardyQueueCheck(scripts, realm, checkPhase));
   }
 }
 
@@ -429,17 +481,65 @@ function setupContentInvoker() {
  * Chrome doesn't fire a syntax error event, so we'll mark ids that didn't start yet
  * as "still starting", so the popup can show them accordingly.
  */
-function tardyQueueCheck(scripts, realm = PAGE) {
+function tardyQueueCheck(scripts, realm = PAGE, checkPhase = 'checkpoint') {
   for (const { id, displayName, [RUN_AT]: runAt } of scripts) {
     if (tardyQueue[id]) {
-      if (bridgeIds[id] === 1) bridgeIds[id] = ID_INJECTING;
+      const pending = isObject(tardyQueue[id]) ? tardyQueue[id] : {
+        queuedAt: Date.now(),
+        nextCheckAt: 0,
+      };
+      if (!isObject(tardyQueue[id])) {
+        tardyQueue[id] = pending;
+      }
+      const bridgeState = bridgeIds[id];
+      if (bridgeState && bridgeState !== 1 && bridgeState !== ID_INJECTING && bridgeState !== ID_BAD_REALM) {
+        markScriptPhase(id, 'started', { realm, runAt, state: bridgeState });
+        delete tardyQueue[id];
+        continue;
+      }
+      if (bridgeState === ID_BAD_REALM) {
+        markScriptPhase(id, 'bad-realm', { realm, runAt, state: bridgeState });
+        delete tardyQueue[id];
+        continue;
+      }
+      if (bridgeState === 1) bridgeIds[id] = ID_INJECTING;
+      const now = Date.now();
+      const elapsedMs = now - (pending.queuedAt || now);
+      if (TARDY_MAX_WAIT_MS && elapsedMs < TARDY_MAX_WAIT_MS) {
+        markScriptPhase(id, 'awaiting-start', {
+          realm,
+          runAt,
+          checkPhase,
+          state: bridgeIds[id],
+          elapsedMs,
+        });
+        if (!pending.nextCheckAt || pending.nextCheckAt <= now) {
+          pending.nextCheckAt = now + TARDY_RECHECK_DELAY_MS;
+          scheduleTardyQueueCheck([{ id, displayName, [RUN_AT]: runAt }], realm, 'grace-recheck', TARDY_RECHECK_DELAY_MS);
+        }
+        continue;
+      }
+      const phase = markScriptPhase(id, 'suspected-stall', {
+        realm,
+        runAt,
+        checkPhase,
+        state: bridgeIds[id],
+        elapsedMs,
+      });
       void sendCmd('DiagnosticsLogScriptIssue', {
         scriptId: id,
         scriptName: displayName,
         runAt,
         realm,
         state: ID_INJECTING,
-        reason: 'Script did not begin execution after injection (likely syntax error or blocked bootstrap).',
+        phase: phase.phase,
+        checkPhase,
+        phaseTrail: phase.history,
+        bridgeState: bridgeIds[id],
+        reason: 'Script did not begin execution after injection.',
+        pageUrl: location.href,
+        fingerprint: [id, location.href].filter(Boolean).join('|'),
+        elapsedMs,
       }).catch(() => {});
       delete tardyQueue[id];
     }

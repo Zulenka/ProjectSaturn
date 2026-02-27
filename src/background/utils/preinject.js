@@ -16,6 +16,7 @@ import { clearNotifications } from './notifications';
 import { hookOptionsInit } from './options';
 import { popupTabs } from './popup-tracker';
 import { analyzeCspForInject } from './preinject-csp';
+import { logBackgroundError } from './diagnostics';
 import { clearRequestsByTabId, reifyRequests } from './requests';
 import { kSetCookie } from './requests-core';
 import { updateVisitedTime } from './script';
@@ -727,7 +728,24 @@ function injectContentRealm(toContent, tabId, frameId) {
       allowLegacyCodeFallback: !IS_MV3,
     };
     executeScriptInTab(tabId, options)
-      .then(scr.meta[UNWRAP] && (() => sendTabCmd(tabId, 'Run', id, { [kFrameId]: frameId })));
+      .then(scr.meta[UNWRAP] && (() => sendTabCmd(tabId, 'Run', id, { [kFrameId]: frameId })))
+      .catch((error) => {
+        logBackgroundError('userscript.content.execute.failed', error, {
+          scriptId: id,
+          scriptName: scr.displayName,
+          runAt: scr[RUN_AT],
+          realm: 'content',
+          phase: 'execute-script',
+          sender: {
+            tabId,
+            frameId,
+          },
+        }, {
+          alert: false,
+          source: 'background',
+          phase: 'execute-script',
+        });
+      });
   }
 }
 

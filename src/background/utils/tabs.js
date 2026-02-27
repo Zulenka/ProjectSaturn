@@ -90,6 +90,30 @@ addOwnCommands({
       pathId || `_new/${src?.tab?.id || (await getActiveTab()).id}`
     }`, src);
   },
+  async OpenEditorAt({
+    id,
+    line,
+    column,
+    source,
+    requireUrl,
+  } = {}, src) {
+    const scriptId = +id;
+    if (!Number.isInteger(scriptId) || scriptId <= 0) {
+      return commands.OpenEditor(id, src);
+    }
+    const query = new URLSearchParams();
+    const lineNum = +line > 0 ? Math.trunc(+line) : 0;
+    const colNum = +column > 0 ? Math.trunc(+column) : 0;
+    if (lineNum || colNum) query.set('error', 'syntax');
+    if (lineNum) query.set('line', `${lineNum}`);
+    if (colNum) query.set('column', `${colNum}`);
+    if (source) query.set('source', `${source}`.slice(0, 24));
+    if (requireUrl) query.set('requireUrl', `${requireUrl}`.slice(0, 500));
+    const queryString = query.toString();
+    return openDashboard(queryString
+      ? `${SCRIPTS}/${scriptId}?${queryString}`
+      : `${SCRIPTS}/${scriptId}`, src);
+  },
   OpenDashboard: openDashboard,
 });
 

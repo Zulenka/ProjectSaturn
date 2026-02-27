@@ -10,6 +10,8 @@ import { emptyStore, store } from './utils';
 
 let mutex, mutexResolve, port;
 let hPrev;
+const POPUP_SCRIPT_ISSUE_DEDUP_MS = 60e3;
+const popupScriptIssueCache = new Map();
 
 initialize();
 render(App);
@@ -84,6 +86,14 @@ async function setPopup(data, { [kFrameId]: frameId, url }) {
       }
       script[MORE] = more;
       script.syntax = state === ID_INJECTING;
+      if (script.syntax) {
+        reportPopupScriptIssue(script, {
+          frameId,
+          url,
+          isTop,
+          state,
+        });
+      }
       if (badRealm && !store.injectionFailure) {
         store.injectionFailure = { fixable: data[INJECT_INTO] === PAGE };
       }
@@ -102,6 +112,47 @@ async function setPopup(data, { [kFrameId]: frameId, url }) {
     // Mobile browsers show the popup maximized to the entire screen, no resizing
     if (isTouch && hPrev > document.body.clientHeight) onResize();
   }
+}
+
+function reportPopupScriptIssue(script, {
+  frameId,
+  url,
+  isTop,
+  state,
+}) {
+  const id = +script?.props?.id || 0;
+  if (!id) return;
+  const scriptName = script?.props?.name || script?.meta?.name || '';
+  const runAt = script?.custom?.runAt || script?.meta?.runAt || script?.meta?.['run-at'] || 'end';
+  const realm = script?.custom?.injectInto || script?.config?.injectInto || '';
+  const fingerprint = [
+    id,
+    url,
+  ].filter(Boolean).join('|');
+  if (!fingerprint) return;
+  const now = Date.now();
+  const prev = popupScriptIssueCache.get(fingerprint) || 0;
+  if (now - prev < POPUP_SCRIPT_ISSUE_DEDUP_MS) return;
+  popupScriptIssueCache.set(fingerprint, now);
+  if (popupScriptIssueCache.size > 600) {
+    for (const [key, ts] of popupScriptIssueCache) {
+      if (now - ts >= POPUP_SCRIPT_ISSUE_DEDUP_MS) popupScriptIssueCache.delete(key);
+    }
+  }
+  sendCmdDirectly('DiagnosticsLogScriptIssue', {
+    scriptId: id,
+    scriptName,
+    runAt,
+    realm: realm || 'unknown',
+    state,
+    phase: 'popup-state',
+    checkPhase: 'popup-state',
+    reason: 'Script reported as still injecting in popup state.',
+    fingerprint,
+    pageUrl: url,
+    frameId,
+    topFrame: !!isTop,
+  }).catch(() => {});
 }
 
 function initMutex(delay = 100) {

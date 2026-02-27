@@ -75,6 +75,11 @@ describe('diagnostics logging backend', () => {
     expect(current.stats.byEvent['command.received']).toBe(1);
     expect(current.stats.byEvent['command.succeeded']).toBe(1);
     expect(current.stats.byEvent['command.failed']).toBe(1);
+    const cmdFailed = current.entries.find(entry => entry.event === 'command.failed');
+    expect(cmdFailed).toBeTruthy();
+    expect(cmdFailed.details.errorLocation.command).toBe('CheckUpdate');
+    expect(cmdFailed.details.errorLocation.source).toBe('background');
+    expect(cmdFailed.details.errorLocation.phase).toBe('execute');
     const exported = await commands.DiagnosticsExportLog({ limit: 20 });
     expect(exported.fileName).toMatch(/^projectsaturn-diagnostics-/);
     expect(exported.mimeType).toBe('application/json');
@@ -83,6 +88,10 @@ describe('diagnostics logging backend', () => {
     expect(parsed.meta.extension.buildId).toBe(process.env.VM_BUILD_ID || '');
     expect(parsed.meta.schemaVersion).toBe(1);
     expect(parsed.stats.total).toBe(parsed.entries.length);
+    const exportedCmdFailed = parsed.entries.find(entry => entry.event === 'command.failed');
+    expect(exportedCmdFailed.location.command).toBe('CheckUpdate');
+    expect(exportedCmdFailed.tags).toContain('command');
+    expect(exportedCmdFailed.tags).toContain('error');
   });
 
   test('clear command empties diagnostics entries', async () => {
@@ -181,13 +190,37 @@ describe('diagnostics logging backend', () => {
     expect(second.logged).toBe(false);
     expect(second.deduped).toBe(true);
     const payload = await commands.DiagnosticsGetLog({
-      event: 'userscript.syntax.suspected',
+      event: 'userscript.startup.stalled',
       limit: 10,
     });
     expect(payload.entries).toHaveLength(1);
     expect(payload.entries[0].type).toBe('error');
+    expect(payload.entries[0].details.classification).toBe('startup-stalled');
     expect(payload.entries[0].details.scriptId).toBe(101);
     expect(payload.entries[0].details.scriptName).toBe('Battle Stats Predictor');
     expect(payload.entries[0].details.sender.tabId).toBe(33);
+    expect(payload.entries[0].details.errorLocation.source).toBe('page');
+    expect(payload.entries[0].details.errorLocation.phase).toBe('bootstrap');
+  });
+
+  test('resolves syntax location and returns editor route for malformed script source', async () => {
+    setupBrowserApis();
+    require('@/background/utils/diagnostics');
+    const { commands } = require('@/background/utils/init');
+    commands.GetScript = jest.fn(() => ({
+      meta: { require: [] },
+      custom: { pathMap: {} },
+      props: { id: 7 },
+    }));
+    commands.GetScriptCode = jest.fn(async () => 'function () {');
+    const payload = await commands.DiagnosticsResolveScriptSyntax({
+      scriptId: 7,
+      realm: 'content',
+      runAt: 'end',
+    });
+    expect(payload.ok).toBe(false);
+    expect(payload.line).toBeGreaterThan(0);
+    expect(payload.column).toBeGreaterThan(0);
+    expect(payload.editorRoute).toContain('scripts/7');
   });
 });
