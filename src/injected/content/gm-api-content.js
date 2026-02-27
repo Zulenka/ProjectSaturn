@@ -80,6 +80,6 @@ export async function sendSetPopup(isDelayed) {
       [INJECT_INTO]: bridge[INJECT_INTO],
       grantless: grantlessUsage,
       menus,
-    });
+    }, { retry: true });
   }
 }

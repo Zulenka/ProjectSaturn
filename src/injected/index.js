@@ -32,7 +32,7 @@ if (topRenderMode === 1
     void sendCmd('ConfirmInstall', {
       url: href,
       from: location.href,
-    }).catch(logging.error);
+    }, { retry: true }).catch(logging.error);
   }, true);
 }
 

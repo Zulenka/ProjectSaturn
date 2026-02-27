@@ -22,7 +22,7 @@ const USERJS_URL_RE = /\.user\.js([?#]|$)/;
 const DNR_INSTALL_RULE_ID = 940001;
 const DNR_INSTALL_REGEX_FILTER = '^https:\\/\\/(?:'
   + 'update\\.(?:greasy|sleazy)fork\\.(?:org|cc)\\/scripts'
-  + '|(?:greasy|sleazy)fork\\.(?:org|cc)\\/scripts\\/[^/]+\\/code'
+  + '|(?:greasy|sleazy)fork\\.(?:org|cc)\\/(?:[a-z]{2}(?:-[A-Z]{2})?\\/)?scripts\\/[^/]+\\/code'
   + '|openuserjs\\.org\\/install\\/[^/]+'
   + '|github\\.com\\/[^/]+\\/[^/]+\\/(?:raw\\/[^/]+|releases\\/(?:download\\/[^/]+|latest\\/download))'
   + '|raw\\.githubusercontent\\.com(?:\\/[^/]+){3}'
@@ -178,7 +178,7 @@ function parseInstallMetadataPayload(payload) {
 
 const CONFIRM_URL_BASE = `${extensionRoot}confirm/index.html#`;
 const whitelistRe = re`/^https:\/\/(
-  (greas|sleaz)yfork\.(org|cc)\/scripts\/[^/]*\/code|
+  (greas|sleaz)yfork\.(org|cc)\/([a-z]{2}(-[A-Z]{2})?\/)?scripts\/[^/]*\/code|
   update\.(greas|sleaz)yfork\.(org|cc)\/scripts|
   openuserjs\.org\/install\/[^/]*|
   github\.com\/[^/]*\/[^/]*\/(

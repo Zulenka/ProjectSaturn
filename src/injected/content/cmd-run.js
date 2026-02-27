@@ -42,8 +42,10 @@ export function Run(id, realm) {
 async function report(delay, reset = !sent) {
   while (--delay >= 0) await nextTask();
   // not awaiting to clear `pending` immediately
-  sendCmd('Run', { reset, [IDS]: runningIds });
-  sendSetPopup(!!pending);
+  sendCmd('Run', { reset, [IDS]: runningIds }, { retry: true })
+    .catch(logging.error);
+  sendSetPopup(!!pending)
+    .catch(logging.error);
   pending = false;
   sent = true;
 }

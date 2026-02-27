@@ -196,6 +196,35 @@ describe('tab-redirector listener mode', () => {
     );
   });
 
+  test('MV3 fallback accepts localized GreasyFork install source', async () => {
+    jest.resetModules();
+    const { tabsOnUpdated } = setupBrowserApis();
+    const targetUrl = 'https://greasyfork.org/en/scripts/123/code/test.user.js';
+    global.browser.tabs.get = jest.fn(async id => ({
+      id,
+      url: targetUrl,
+      active: false,
+      incognito: false,
+      windowId: 1,
+    }));
+    global.extensionManifest.manifest_version = 3;
+    const common = require('@/common');
+    const reqSpy = jest.spyOn(common, 'request').mockResolvedValue({
+      data: '// ==UserScript==\n// @name Localized\n// ==/UserScript==\n',
+    });
+    require('@/background/utils/tab-redirector');
+    const handlers = tabsOnUpdated.addListener.mock.calls
+      .filter(([, filter]) => !filter || filter?.properties?.includes('url'))
+      .map(([fn]) => fn);
+    handlers.forEach(fn => fn(34, { url: targetUrl }, { id: 34, url: targetUrl }));
+    await flushTasks();
+    expect(reqSpy).toHaveBeenCalledWith(targetUrl);
+    expect(global.browser.tabs.update).toHaveBeenCalledWith(
+      34,
+      expect.objectContaining({ url: expect.stringContaining('confirm/index.html#') }),
+    );
+  });
+
   test('MV3 fallback resolves GreasyFork JSONP metadata to code_url before opening Confirm', async () => {
     jest.resetModules();
     const { tabsOnUpdated } = setupBrowserApis();
