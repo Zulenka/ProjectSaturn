@@ -3,6 +3,39 @@ import { sendCmd } from './content/util';
 import { USERSCRIPT_META_INTRO } from './util';
 import './content';
 
+const INSTALLER_SITE_RE = /(?:^|\.)((?:greasy|sleazy)fork\.(?:org|cc))$/i;
+const USERSCRIPT_URL_RE = /\.user\.js(?:[?#]|$)/i;
+
+// Chromium MV3 may treat install-button navigations as direct file downloads,
+// which can bypass tab URL update interception. Catch trusted install-link clicks
+// on GreasyFork/SleazyFork pages and route them into ConfirmInstall explicitly.
+if (topRenderMode === 1
+&& /^https?:$/.test(location.protocol)
+&& INSTALLER_SITE_RE.test(location.hostname)
+) {
+  addEventListener('click', evt => {
+    if (evt.defaultPrevented
+    || evt.button !== 0
+    || evt.metaKey
+    || evt.ctrlKey
+    || evt.shiftKey
+    || evt.altKey) {
+      return;
+    }
+    const anchor = evt.target?.closest?.('a[href]');
+    const href = anchor?.href;
+    if (!href || !USERSCRIPT_URL_RE.test(href)) {
+      return;
+    }
+    evt.preventDefault();
+    evt.stopImmediatePropagation();
+    void sendCmd('ConfirmInstall', {
+      url: href,
+      from: location.href,
+    }).catch(logging.error);
+  }, true);
+}
+
 // Script installation in Firefox as it does not support `onBeforeRequest` for `file:`
 // Using pathname and a case-sensitive check to match webRequest `urls` filter behavior
 if (IS_FIREFOX && topRenderMode === 1
